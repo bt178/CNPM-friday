@@ -41,7 +41,21 @@ class Settings(BaseSettings):
         """Alias for cors_origins_list for backward compatibility."""
         return self.cors_origins_list
 
+from pydantic_settings import BaseSettings
 
+class Settings(BaseSettings):
+    # Database
+    DATABASE_URL: str
+    
+    # JWT Settings
+    SECRET_KEY: str = "your-secret-key-change-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # ... other settings
+    
+    class Config:
+        env_file = ".env"
 # Create a single instance of Settings
 settings = Settings()
 
