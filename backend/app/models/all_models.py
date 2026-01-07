@@ -77,6 +77,10 @@ class User(Base):
     role: Mapped["Role"] = relationship("Role", back_populates="users")
     department: Mapped[Optional["Department"]] = relationship("Department", back_populates="users")
 
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification", back_populates="user", cascade="all, delete-orphan"
+    )
+
     system_settings: Mapped[list["SystemSetting"]] = relationship("SystemSetting", back_populates="updated_by_user")
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="actor")
     
@@ -103,6 +107,11 @@ class User(Base):
     peer_reviews_given: Mapped[list["PeerReview"]] = relationship("PeerReview", back_populates="reviewer", foreign_keys="PeerReview.reviewer_id")
     peer_reviews_received: Mapped[list["PeerReview"]] = relationship("PeerReview", back_populates="reviewee", foreign_keys="PeerReview.reviewee_id")
 
+    avatar_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    bio: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    
+    role_id: Mapped[int] = mapped_column(Integer, ForeignKey("roles.role_id"))
 
 class SystemSetting(Base):
     """System settings model."""
@@ -476,3 +485,29 @@ class Resource(Base):
     uploader: Mapped["User"] = relationship("User", back_populates="uploaded_resources")
     academic_class: Mapped[Optional["AcademicClass"]] = relationship("AcademicClass", back_populates="resources")
     team: Mapped[Optional["Team"]] = relationship("Team", back_populates="resources")
+
+    # ==========================================
+# CLUSTER 7: NOTIFICATIONS
+# ==========================================
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    notification_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False
+    )
+    
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    related_entity_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    related_entity_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    action_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    
+    user: Mapped["User"] = relationship("User", back_populates="notifications")

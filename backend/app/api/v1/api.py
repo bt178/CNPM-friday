@@ -5,6 +5,8 @@ from fastapi import APIRouter
 # Create the main API router
 api_router = APIRouter()
 
+from app.api.v1 import profile, user_import, notifications
+
 # Include endpoint routers as they become available
 # For now, we'll start with a basic structure
 # TODO: Add more endpoint routers as they are implemented
@@ -22,3 +24,7 @@ async def test_endpoint():
 # from app.api.v1 import users, projects
 # api_router.include_router(users.router, prefix="/users", tags=["users"])
 # api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
+
+api_router.include_router(profile.router, tags=["Profile"])
+api_router.include_router(user_import.router, tags=["User Import"])
+api_router.include_router(notifications.router, tags=["Notifications"])
