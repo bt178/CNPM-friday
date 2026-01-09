@@ -112,7 +112,7 @@ const AdminDashboard = () => {
       setIsModalOpen(false);
       fetchData();
     } catch (err) {
-      message.error("Error: Please check input info.");
+      message.error(err.message || "Error: Please check input info.");
     }
   };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs'; // Cài đặt: npm install dayjs 
-import { Layout, Typography, Button, Table, Avatar, Space, Badge, Calendar, Input, Select, Card, Tag, Row, Col, List } from 'antd';
+import { Layout, Typography, Button, Table, Avatar, Space, Badge, Calendar, Input, Select, Card, Tag, Row, Col, List, message } from 'antd';
 import {
   SettingOutlined, BellOutlined, SearchOutlined, FilterOutlined,
   DashboardOutlined, TeamOutlined, DesktopOutlined, TableOutlined,
@@ -52,6 +52,26 @@ const ProjectListView = () => {
     fetchProjects();
   }, []);
 
+  const handleChooseProject = async (record) => {
+    try {
+      if (record.status === 'Claimed') {
+        message.warning('This project is already claimed!');
+        return;
+      }
+
+      await projectService.update(record.key, { status: 'Claimed' });
+      message.success('Project claimed successfully!');
+
+      // Update local state
+      setAllData(prev => prev.map(item =>
+        item.key === record.key ? { ...item, status: 'Claimed' } : item
+      ));
+    } catch (error) {
+      console.error(error);
+      message.error('Failed to claim project');
+    }
+  };
+
   // Logic xử lý Lịch
   const startDay = currentDate.startOf('month').day();
   const daysInMonth = currentDate.daysInMonth();
@@ -71,7 +91,13 @@ const ProjectListView = () => {
       const matchesSearch = item.topic.toLowerCase().includes(searchKey);
       return matchesCategory && matchesSearch;
     })
-    .sort((a, b) => a.topic.localeCompare(b.topic));
+    .sort((a, b) => {
+      // Prioritize "Claimed" status to the bottom
+      if (a.status === 'Claimed' && b.status !== 'Claimed') return 1;
+      if (a.status !== 'Claimed' && b.status === 'Claimed') return -1;
+      // Secondary sort by topic
+      return a.topic.localeCompare(b.topic);
+    });
 
   const handleMenuClick = (e) => {
     if (e.key === 'all') {
@@ -100,7 +126,22 @@ const ProjectListView = () => {
       title: 'Activity',
       key: 'activity',
       width: 100,
-      render: () => <Button size="small" type="default" style={{ background: '#1890ff', color: '#fff', border: 'none' }}>Choose</Button>
+      render: (_, record) => (
+        <Button
+          size="small"
+          type="default"
+          style={{
+            background: record.status === 'Claimed' ? '#d9d9d9' : '#1890ff',
+            color: record.status === 'Claimed' ? '#00000040' : '#fff',
+            border: 'none',
+            cursor: record.status === 'Claimed' ? 'not-allowed' : 'pointer'
+          }}
+          onClick={() => handleChooseProject(record)}
+          disabled={record.status === 'Claimed'}
+        >
+          {record.status === 'Claimed' ? 'Claimed' : 'Choose'}
+        </Button>
+      )
     },
   ];
 

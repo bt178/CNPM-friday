@@ -15,10 +15,31 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 1. Định nghĩa Base URL
-
 // Helper to simulate network delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// --- LocalStorage Helpers ---
+const loadData = (key, defaultData) => {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) return JSON.parse(stored);
+  } catch (e) {
+    console.error(`Error parsing ${key} from localStorage`, e);
+  }
+  localStorage.setItem(key, JSON.stringify(defaultData));
+  return [...defaultData]; // Return copy
+};
+
+const saveData = (key, data) => {
+  localStorage.setItem(key, JSON.stringify(data));
+};
+
+// Initialize Data
+let localUsers = loadData('users', mockUsers);
+let localSubjects = loadData('subjects', mockSubjects);
+let localClasses = loadData('classes', mockClasses);
+let localProjects = loadData('projects', mockProjects);
+
 
 // Helper for pagination & search
 const mockFetch = async (data, params) => {
@@ -47,52 +68,100 @@ const mockFetch = async (data, params) => {
 
 // 3. User Service 
 export const userService = {
-  updateProfile: async (data) => { await delay(500); return { data: { ...mockUsers[0], ...data } }; },
+  updateProfile: async (data) => { await delay(500); return { data: { ...localUsers[0], ...data } }; },
   changePassword: async (data) => { await delay(500); return { data: { success: true } }; },
   uploadAvatar: async (file) => { await delay(500); return { data: { url: 'https://i.pravatar.cc/150' } }; },
 
   // Admin only
-  getAll: (params) => mockFetch(mockUsers, params),
-  create: async (data) => { await delay(500); mockUsers.push({ ...data, user_id: `u${Date.now()}` }); return { data }; },
+  getAll: (params) => mockFetch(localUsers, params),
+  create: async (data) => {
+    await delay(500);
+    if (localUsers.some(u => u.email === data.email)) {
+      throw new Error('Email already exists');
+    }
+    const newUser = { ...data, user_id: `u${Date.now()}` };
+    localUsers.push(newUser);
+    saveData('users', localUsers);
+    return { data: newUser };
+  },
 };
 
 // 4. Subject Service 
 export const subjectService = {
-  getAll: (params) => mockFetch(mockSubjects, params),
-  create: async (data) => { await delay(500); mockSubjects.push({ ...data, subject_id: Date.now() }); return { data }; },
+  getAll: (params) => mockFetch(localSubjects, params),
+  create: async (data) => {
+    await delay(500);
+    if (localSubjects.some(s => s.subject_code === data.subject_code)) {
+      throw new Error('Subject code already exists');
+    }
+    const newSubject = { ...data, subject_id: Date.now() };
+    localSubjects.push(newSubject);
+    saveData('subjects', localSubjects);
+    return { data: newSubject };
+  },
   update: async (id, data) => {
     await delay(500);
-    const idx = mockSubjects.findIndex(s => s.subject_id === id);
-    if (idx > -1) mockSubjects[idx] = { ...mockSubjects[idx], ...data };
-    return { data };
+    const idx = localSubjects.findIndex(s => s.subject_id === id);
+    if (idx > -1) {
+      localSubjects[idx] = { ...localSubjects[idx], ...data };
+      saveData('subjects', localSubjects);
+    }
+    return { data: localSubjects[idx] };
   },
   delete: async (id) => {
     await delay(500);
-    const idx = mockSubjects.findIndex(s => s.subject_id === id);
-    if (idx > -1) mockSubjects.splice(idx, 1);
+    const idx = localSubjects.findIndex(s => s.subject_id === id);
+    if (idx > -1) {
+      localSubjects.splice(idx, 1);
+      saveData('subjects', localSubjects);
+    }
     return { data: { success: true } };
   }
 };
 
 // 5. Class Service
 export const classService = {
-  getAll: (params) => mockFetch(mockClasses, params),
-  create: async (data) => { await delay(500); mockClasses.push({ ...data, class_id: Date.now() }); return { data }; },
+  getAll: (params) => mockFetch(localClasses, params),
+  create: async (data) => {
+    await delay(500);
+    if (localClasses.some(c => c.class_code === data.class_code)) {
+      throw new Error('Class code already exists');
+    }
+    const newClass = { ...data, class_id: Date.now() };
+    localClasses.push(newClass);
+    saveData('classes', localClasses);
+    return { data: newClass };
+  },
   update: async (id, data) => {
     await delay(500);
-    const idx = mockClasses.findIndex(c => c.class_id === id);
-    if (idx > -1) mockClasses[idx] = { ...mockClasses[idx], ...data };
-    return { data };
+    const idx = localClasses.findIndex(c => c.class_id === id);
+    if (idx > -1) {
+      localClasses[idx] = { ...localClasses[idx], ...data };
+      saveData('classes', localClasses);
+    }
+    return { data: localClasses[idx] };
   },
   delete: async (id) => {
     await delay(500);
-    const idx = mockClasses.findIndex(c => c.class_id === id);
-    if (idx > -1) mockClasses.splice(idx, 1);
+    const idx = localClasses.findIndex(c => c.class_id === id);
+    if (idx > -1) {
+      localClasses.splice(idx, 1);
+      saveData('classes', localClasses);
+    }
     return { data: { success: true } };
   }
 };
 
 // 6. Project Service (For Student View)
 export const projectService = {
-  getAll: (params) => mockFetch(mockProjects, params),
+  getAll: (params) => mockFetch(localProjects, params),
+  update: async (key, data) => {
+    await delay(500);
+    const idx = localProjects.findIndex(p => p.key === key);
+    if (idx > -1) {
+      localProjects[idx] = { ...localProjects[idx], ...data };
+      saveData('projects', localProjects);
+    }
+    return { data: localProjects[idx] };
+  }
 };
