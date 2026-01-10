@@ -1,39 +1,50 @@
-"""
-Pydantic schemas for Project and Topic (Project Proposal) management.
-"""
-from __future__ import annotations
+"""Pydantic schemas for Topic and Project."""
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, field_validator
 
 
-# ==========================================
-# TOPIC (PROJECT PROPOSAL) SCHEMAS
-# ==========================================
+class TopicStatus(str, Enum):
+    """Topic status enum."""
+    DRAFT = "DRAFT"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+
+
+# ==================== TOPIC SCHEMAS ====================
 
 class TopicBase(BaseModel):
-    """Base schema for Topic with common fields."""
-    title: Optional[str] = Field(None, max_length=255)
-    description: Optional[str] = None
-    objectives: Optional[str] = None
-    tech_stack: Optional[str] = Field(None, description="Comma-separated tech stack")
-
-
-class TopicCreate(TopicBase):
-    """Schema for creating a new Topic (Lecturer only)."""
-    dept_id: int = Field(..., description="Department ID")
-    # creator_id will be taken from JWT token, not from request body
-
-
-class TopicUpdate(BaseModel):
-    """Schema for updating an existing Topic."""
-    title: Optional[str] = Field(None, max_length=255)
+    """Base schema for Topic."""
+    title: Optional[str] = None
     description: Optional[str] = None
     objectives: Optional[str] = None
     tech_stack: Optional[str] = None
-    status: Optional[str] = Field(None, description="draft, pending, approved, rejected")
+
+
+class TopicCreate(TopicBase):
+    """Schema for creating a Topic."""
+    title: str
+    dept_id: int
+
+
+class TopicUpdate(TopicBase):
+    """Schema for updating a Topic."""
+    pass
+
+
+class TopicStatusUpdate(BaseModel):
+    """Schema for updating Topic status."""
+    status: TopicStatus
+    
+    @field_validator('status', mode='before')
+    @classmethod
+    def convert_to_uppercase(cls, v):
+        if isinstance(v, str):
+            return v.upper()
+        return v
 
 
 class TopicResponse(TopicBase):
@@ -41,62 +52,33 @@ class TopicResponse(TopicBase):
     topic_id: int
     creator_id: UUID
     dept_id: int
-    status: str = Field(default="draft")
+    status: Optional[str] = None
     created_at: datetime
-
-    # Include creator info
-    creator_name: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
-class TopicListResponse(BaseModel):
-    """Schema for paginated Topic list."""
-    items: list[TopicResponse]
-    total: int
-    page: int
-    page_size: int
-
-
-# ==========================================
-# PROJECT SCHEMAS
-# ==========================================
+# ==================== PROJECT SCHEMAS ====================
 
 class ProjectBase(BaseModel):
     """Base schema for Project."""
-    project_name: str
-    topic_id: int
-    class_id: int
-    status: Optional[str] = "active"
+    project_name: Optional[str] = None
 
 
 class ProjectCreate(ProjectBase):
-    """Schema for creating a Project (linking Topic to Class)."""
-    pass
-
-
-class ProjectUpdate(BaseModel):
-    """Schema for updating Project."""
-    project_name: Optional[str] = None
-    topic_id: Optional[int] = None
-    class_id: Optional[int] = None
-    status: Optional[str] = None
+    """Schema for creating a Project."""
+    topic_id: int
+    class_id: int
+    project_name: str
 
 
 class ProjectResponse(ProjectBase):
     """Schema for Project response."""
     project_id: int
-
-    class Config:
-        from_attributes = True
-
-
-class ProjectDetailResponse(ProjectResponse):
-    """Detailed Project response including topic details."""
-    topic: Optional[TopicResponse] = None
-    team_count: int = 0
-    has_assigned_team: bool = False
+    topic_id: int
+    class_id: int
+    status: Optional[str] = None
 
     class Config:
         from_attributes = True

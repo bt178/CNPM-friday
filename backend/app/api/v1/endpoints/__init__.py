@@ -1,1 +1,1 @@
-"""Endpoints package for API v1."""
+# Endpoints package

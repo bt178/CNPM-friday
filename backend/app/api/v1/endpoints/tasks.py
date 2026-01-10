@@ -1,736 +1,250 @@
-"""
-FastAPI endpoints for Task Board (Kanban-style) management.
-Ticket: BE-TASK-01
-"""
-from typing import Optional
+"""API endpoints for Task Board - BE-TASK-01."""
+from typing import Any, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.models.all_models import Sprint, Task, Team, TeamMember, User
+from app.models.all_models import Task, Team, TeamMember, User
 from app.schemas.task import (
-    SprintCreate,
-    SprintResponse,
-    SprintUpdate,
-    TaskBoardResponse,
     TaskCreate,
     TaskResponse,
-    TaskStatistics,
-    TaskStatusUpdate,
+    TaskStatus,
     TaskUpdate,
 )
 
 router = APIRouter()
 
 
-# ==========================================
-# HELPER FUNCTIONS
-# ==========================================
-
-async def verify_team_member(
-    db: AsyncSession,
-    team_id: int,
-    user_id: UUID,
-) -> bool:
-    """Check if user is a member of the team."""
+async def check_team_membership(db: AsyncSession, user: User, team_id: int) -> TeamMember:
+    """Check if user is a member of the team. Returns membership or raises 403."""
     result = await db.execute(
-        select(TeamMember).where(
-            and_(
-                TeamMember.team_id == team_id,
-                TeamMember.student_id == user_id,
-                TeamMember.is_active == True,
-            )
-        )
+        select(TeamMember)
+        .where(TeamMember.team_id == team_id)
+        .where(TeamMember.student_id == user.user_id)
+        .where(TeamMember.is_active == True)
     )
-    return result.scalar_one_or_none() is not None
-
-
-# ==========================================
-# SPRINT ENDPOINTS
-# ==========================================
-
-@router.post("/sprints", response_model=SprintResponse, status_code=status.HTTP_201_CREATED)
-async def create_sprint(
-    sprint_in: SprintCreate,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """
-    Create a new Sprint for a team.
-    Only team members can create sprints.
-    """
-    if current_user.role.role_name.upper() != "STUDENT":
+    membership = result.scalars().first()
+    if not membership:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only students can create sprints",
+            detail="You are not a member of this team"
         )
+    return membership
 
-    # Verify team exists
-    team_result = await db.execute(
-        select(Team).where(Team.team_id == sprint_in.team_id)
-    )
-    if not team_result.scalar_one_or_none():
+
+async def validate_team_exists(db: AsyncSession, team_id: int) -> Team:
+    """Validate that team exists. Returns team or raises 404."""
+    result = await db.execute(select(Team).where(Team.team_id == team_id))
+    team = result.scalars().first()
+    if not team:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Team {sprint_in.team_id} not found",
+            detail=f"Team with id {team_id} not found"
         )
-
-    # Verify user is team member
-    if not await verify_team_member(db, sprint_in.team_id, current_user.user_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not a member of this team",
-        )
-
-    # Create sprint
-    new_sprint = Sprint(
-        team_id=sprint_in.team_id,
-        title=sprint_in.title,
-        start_date=sprint_in.start_date,
-        end_date=sprint_in.end_date,
-        status="planned",
-    )
-
-    db.add(new_sprint)
-    await db.commit()
-    await db.refresh(new_sprint)
-
-    response = SprintResponse.model_validate(new_sprint)
-    response.task_count = 0
-    return response
+    return team
 
 
-@router.get("/teams/{team_id}/sprints", response_model=list[SprintResponse])
-async def list_sprints(
-    team_id: int,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """List all sprints for a team."""
-    # Verify team exists
-    team_result = await db.execute(
-        select(Team).where(Team.team_id == team_id)
-    )
-    if not team_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Team {team_id} not found",
-        )
-
-    # Verify access (team member or lecturer)
-    user_role = current_user.role.role_name.upper()
-    if user_role == "STUDENT":
-        if not await verify_team_member(db, team_id, current_user.user_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not a member of this team",
-            )
-
-    # Get sprints with task count
-    result = await db.execute(
-        select(Sprint)
-        .options(selectinload(Sprint.tasks))
-        .where(Sprint.team_id == team_id)
-        .order_by(Sprint.start_date.desc())
-    )
-    sprints = result.scalars().all()
-
-    responses = []
-    for sprint in sprints:
-        resp = SprintResponse.model_validate(sprint)
-        resp.task_count = len(sprint.tasks) if sprint.tasks else 0
-        responses.append(resp)
-
-    return responses
-
-
-@router.get("/sprints/{sprint_id}", response_model=SprintResponse)
-async def get_sprint(
-    sprint_id: int,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """Get Sprint details."""
-    result = await db.execute(
-        select(Sprint)
-        .options(selectinload(Sprint.tasks))
-        .where(Sprint.sprint_id == sprint_id)
-    )
-    sprint = result.scalar_one_or_none()
-
-    if not sprint:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Sprint {sprint_id} not found",
-        )
-
-    # Verify access
-    user_role = current_user.role.role_name.upper()
-    if user_role == "STUDENT":
-        if not await verify_team_member(db, sprint.team_id, current_user.user_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not a member of this team",
-            )
-
-    response = SprintResponse.model_validate(sprint)
-    response.task_count = len(sprint.tasks) if sprint.tasks else 0
-    return response
-
-
-@router.patch("/sprints/{sprint_id}", response_model=SprintResponse)
-async def update_sprint(
-    sprint_id: int,
-    sprint_in: SprintUpdate,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """Update Sprint details. Only team members can update."""
-    result = await db.execute(
-        select(Sprint).where(Sprint.sprint_id == sprint_id)
-    )
-    sprint = result.scalar_one_or_none()
-
-    if not sprint:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Sprint {sprint_id} not found",
-        )
-
-    # Verify team membership
-    if current_user.role.role_name.upper() == "STUDENT":
-        if not await verify_team_member(db, sprint.team_id, current_user.user_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not a member of this team",
-            )
-
-    # Validate status
-    if sprint_in.status and sprint_in.status not in ["planned", "active", "completed"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid status. Must be: planned, active, completed",
-        )
-
-    # Update fields
-    update_data = sprint_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(sprint, field, value)
-
-    await db.commit()
-    await db.refresh(sprint)
-
-    # Get task count
-    task_count_result = await db.execute(
-        select(func.count()).select_from(Task).where(Task.sprint_id == sprint_id)
-    )
-    task_count = task_count_result.scalar()
-
-    response = SprintResponse.model_validate(sprint)
-    response.task_count = task_count
-    return response
-
-
-@router.delete("/sprints/{sprint_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_sprint(
-    sprint_id: int,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """
-    Delete Sprint.
-    Only team leader can delete sprints.
-    """
-    result = await db.execute(
-        select(Sprint)
-        .join(Team)
-        .where(Sprint.sprint_id == sprint_id)
-    )
-    sprint = result.scalar_one_or_none()
-
-    if not sprint:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Sprint {sprint_id} not found",
-        )
-
-    # Get team to check leadership
-    team_result = await db.execute(
-        select(Team).where(Team.team_id == sprint.team_id)
-    )
-    team = team_result.scalar_one_or_none()
-
-    if current_user.role.role_name.upper() == "STUDENT":
-        if team.leader_id != current_user.user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only team leader can delete sprints",
-            )
-
-    await db.delete(sprint)
-    await db.commit()
-    return None
-
-
-# ==========================================
-# TASK ENDPOINTS
-# ==========================================
-
-@router.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
-    task_in: TaskCreate,
+    *,
     db: AsyncSession = Depends(deps.get_db),
+    task_in: TaskCreate,
     current_user: User = Depends(deps.get_current_user),
-):
+) -> Any:
     """
-    Create a new Task.
-    Only team members can create tasks.
-    If sprint_id is null, task goes to backlog.
+    Create a new task.
+    Only team members can create tasks for their team.
+    Initial status is TODO.
     """
-    if current_user.role.role_name.upper() != "STUDENT":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only students can create tasks",
-        )
-
-    # Get sprint to verify team membership
-    team_id = None
-    if task_in.sprint_id:
-        sprint_result = await db.execute(
-            select(Sprint).where(Sprint.sprint_id == task_in.sprint_id)
-        )
-        sprint = sprint_result.scalar_one_or_none()
-        if not sprint:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Sprint {task_in.sprint_id} not found",
-            )
-        team_id = sprint.team_id
-    else:
-        # For backlog tasks, we need team_id from request (you might want to add this to TaskCreate)
-        # For now, we'll require sprint_id
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="sprint_id is required. Use team sprints or create a sprint first",
-        )
-
-    # Verify team membership
-    if not await verify_team_member(db, team_id, current_user.user_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not a member of this team",
-        )
-
-    # Verify assignee is team member if provided
-    if task_in.assignee_id:
-        if not await verify_team_member(db, team_id, task_in.assignee_id):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Assignee is not a member of this team",
-            )
-
-    # Create task
-    new_task = Task(
-        sprint_id=task_in.sprint_id,
+    # FIX BUG-02 & BUG-03: Validate team exists
+    await validate_team_exists(db, task_in.team_id)
+    
+    # FIX BUG-01: Check team membership (unless admin/lecturer)
+    if current_user.role_id == 5:  # Student
+        await check_team_membership(db, current_user, task_in.team_id)
+    
+    task = Task(
         title=task_in.title,
         description=task_in.description,
+        team_id=task_in.team_id,
+        sprint_id=task_in.sprint_id,
         assignee_id=task_in.assignee_id,
-        priority=task_in.priority or "medium",
-        status="todo",
+        priority=task_in.priority.value if task_in.priority else "MEDIUM",
+        status=TaskStatus.TODO.value,
         due_date=task_in.due_date,
     )
 
-    db.add(new_task)
+    db.add(task)
     await db.commit()
-    await db.refresh(new_task)
-
-    # Load relationships
-    if new_task.assignee_id:
-        await db.refresh(new_task, attribute_names=["assignee"])
-    if new_task.sprint_id:
-        await db.refresh(new_task, attribute_names=["sprint"])
-
-    response = TaskResponse.model_validate(new_task)
-    response.assignee_name = new_task.assignee.full_name if new_task.assignee else None
-    response.sprint_title = new_task.sprint.title if new_task.sprint else None
-    return response
+    await db.refresh(task)
+    return task
 
 
-@router.get("/sprints/{sprint_id}/tasks", response_model=list[TaskResponse])
-async def list_tasks_by_sprint(
-    sprint_id: int,
-    status: Optional[str] = Query(None, description="Filter by status: todo, doing, done"),
+@router.get("/", response_model=List[TaskResponse])
+async def list_tasks(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-):
-    """List all tasks in a sprint."""
-    # Verify sprint exists
-    sprint_result = await db.execute(
-        select(Sprint).where(Sprint.sprint_id == sprint_id)
-    )
-    sprint = sprint_result.scalar_one_or_none()
-    if not sprint:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Sprint {sprint_id} not found",
-        )
-
-    # Verify access
-    user_role = current_user.role.role_name.upper()
-    if user_role == "STUDENT":
-        if not await verify_team_member(db, sprint.team_id, current_user.user_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not a member of this team",
-            )
-
-    # Build query
-    query = (
-        select(Task)
-        .options(
-            selectinload(Task.assignee),
-            selectinload(Task.sprint),
-        )
-        .where(Task.sprint_id == sprint_id)
-    )
-
-    if status:
-        query = query.where(Task.status == status.lower())
-
-    result = await db.execute(query)
-    tasks = result.scalars().all()
-
-    responses = []
-    for task in tasks:
-        resp = TaskResponse.model_validate(task)
-        resp.assignee_name = task.assignee.full_name if task.assignee else None
-        resp.sprint_title = task.sprint.title if task.sprint else None
-        responses.append(resp)
-
-    return responses
-
-
-@router.get("/sprints/{sprint_id}/board", response_model=TaskBoardResponse)
-async def get_task_board(
-    sprint_id: int,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
+    team_id: Optional[int] = Query(None),
+    sprint_id: Optional[int] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    assignee_id: Optional[UUID] = Query(None),
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
     """
-    Get Task Board (Kanban view) grouped by status.
-    Returns tasks organized into: todo, doing, done, backlog.
+    List tasks.
+    - Students: Only see tasks from their teams
+    - Lecturers/Admin: Can see all tasks (with optional team_id filter)
     """
-    # Verify sprint exists
-    sprint_result = await db.execute(
-        select(Sprint).where(Sprint.sprint_id == sprint_id)
-    )
-    sprint = sprint_result.scalar_one_or_none()
-    if not sprint:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Sprint {sprint_id} not found",
+    query = select(Task)
+
+    # FIX BUG-06: Students can only see tasks from their teams
+    if current_user.role_id == 5:  # Student
+        # Get all teams the student is a member of
+        team_ids_result = await db.execute(
+            select(TeamMember.team_id)
+            .where(TeamMember.student_id == current_user.user_id)
+            .where(TeamMember.is_active == True)
         )
-
-    # Verify access
-    user_role = current_user.role.role_name.upper()
-    if user_role == "STUDENT":
-        if not await verify_team_member(db, sprint.team_id, current_user.user_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not a member of this team",
-            )
-
-    # Get all tasks
-    result = await db.execute(
-        select(Task)
-        .options(
-            selectinload(Task.assignee),
-            selectinload(Task.sprint),
-        )
-        .where(Task.sprint_id == sprint_id)
-    )
-    tasks = result.scalars().all()
-
-    # Group by status
-    board = TaskBoardResponse(
-        todo=[],
-        doing=[],
-        done=[],
-        backlog=[],
-    )
-
-    for task in tasks:
-        task_resp = TaskResponse.model_validate(task)
-        task_resp.assignee_name = task.assignee.full_name if task.assignee else None
-        task_resp.sprint_title = task.sprint.title if task.sprint else None
-
-        task_status = (task.status or "todo").lower()
-        if task_status == "todo":
-            board.todo.append(task_resp)
-        elif task_status == "doing":
-            board.doing.append(task_resp)
-        elif task_status == "done":
-            board.done.append(task_resp)
+        user_team_ids = [t[0] for t in team_ids_result.fetchall()]
+        
+        if not user_team_ids:
+            return []  # No teams, no tasks
+        
+        if team_id:
+            # Verify student is in the requested team
+            if team_id not in user_team_ids:
+                raise HTTPException(status_code=403, detail="You are not a member of this team")
+            query = query.where(Task.team_id == team_id)
         else:
-            board.backlog.append(task_resp)
+            query = query.where(Task.team_id.in_(user_team_ids))
+    elif team_id:
+        query = query.where(Task.team_id == team_id)
 
-    return board
+    if sprint_id:
+        query = query.where(Task.sprint_id == sprint_id)
+
+    if status_filter:
+        query = query.where(Task.status == status_filter.upper())
+
+    if assignee_id:
+        query = query.where(Task.assignee_id == assignee_id)
+
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
 
 
-@router.get("/tasks/{task_id}", response_model=TaskResponse)
+@router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: int,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-):
-    """Get Task details."""
-    result = await db.execute(
-        select(Task)
-        .options(
-            selectinload(Task.assignee),
-            selectinload(Task.sprint).selectinload(Sprint.team),
-        )
-        .where(Task.task_id == task_id)
-    )
-    task = result.scalar_one_or_none()
+) -> Any:
+    """Get task by ID."""
+    result = await db.execute(select(Task).where(Task.task_id == task_id))
+    task = result.scalars().first()
 
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found",
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # FIX BUG-06: Students can only see tasks from their teams
+    if current_user.role_id == 5:
+        membership = await db.execute(
+            select(TeamMember)
+            .where(TeamMember.team_id == task.team_id)
+            .where(TeamMember.student_id == current_user.user_id)
+            .where(TeamMember.is_active == True)
         )
+        if not membership.scalars().first():
+            raise HTTPException(status_code=403, detail="You cannot view this task")
 
-    # Verify access
-    if task.sprint:
-        user_role = current_user.role.role_name.upper()
-        if user_role == "STUDENT":
-            if not await verify_team_member(db, task.sprint.team_id, current_user.user_id):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You are not a member of this team",
-                )
-
-    response = TaskResponse.model_validate(task)
-    response.assignee_name = task.assignee.full_name if task.assignee else None
-    response.sprint_title = task.sprint.title if task.sprint else None
-    return response
+    return task
 
 
-@router.patch("/tasks/{task_id}", response_model=TaskResponse)
+@router.put("/{task_id}", response_model=TaskResponse)
 async def update_task(
     task_id: int,
     task_in: TaskUpdate,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-):
+) -> Any:
     """
-    Update Task.
-    Team members can update any task.
+    Update task.
+    - Only team members can update tasks
+    - Status transitions: TODO <-> DOING <-> DONE
     """
-    result = await db.execute(
-        select(Task)
-        .options(selectinload(Task.sprint))
-        .where(Task.task_id == task_id)
-    )
-    task = result.scalar_one_or_none()
+    result = await db.execute(select(Task).where(Task.task_id == task_id))
+    task = result.scalars().first()
 
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found",
-        )
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # FIX BUG-01: Check authorization
+    if current_user.role_id == 5:  # Student
+        await check_team_membership(db, current_user, task.team_id)
 
-    # Verify team membership
-    if task.sprint:
-        if current_user.role.role_name.upper() == "STUDENT":
-            if not await verify_team_member(db, task.sprint.team_id, current_user.user_id):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You are not a member of this team",
-                )
+    # Handle status transition validation
+    if task_in.status:
+        current_status = task.status
+        new_status = task_in.status.value
 
-    # Validate status
-    if task_in.status and task_in.status not in ["todo", "doing", "done"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid status. Must be: todo, doing, done",
-        )
+        valid_transitions = {
+            TaskStatus.TODO.value: [TaskStatus.DOING.value],
+            TaskStatus.DOING.value: [TaskStatus.TODO.value, TaskStatus.DONE.value],
+            TaskStatus.DONE.value: [TaskStatus.DOING.value],
+        }
 
-    # Validate priority
-    if task_in.priority and task_in.priority not in ["low", "medium", "high"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid priority. Must be: low, medium, high",
-        )
-
-    # Verify new assignee is team member
-    if task_in.assignee_id and task.sprint:
-        if not await verify_team_member(db, task.sprint.team_id, task_in.assignee_id):
+        allowed = valid_transitions.get(current_status, [])
+        if new_status != current_status and new_status not in allowed:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Assignee is not a member of this team",
+                status_code=400,
+                detail=f"Invalid status transition from {current_status} to {new_status}",
             )
 
     # Update fields
     update_data = task_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(task, field, value)
+        if field == "status" and value:
+            setattr(task, field, value.value)
+        elif field == "priority" and value:
+            setattr(task, field, value.value)
+        else:
+            setattr(task, field, value)
 
     await db.commit()
     await db.refresh(task)
-    await db.refresh(task, attribute_names=["assignee", "sprint"])
-
-    response = TaskResponse.model_validate(task)
-    response.assignee_name = task.assignee.full_name if task.assignee else None
-    response.sprint_title = task.sprint.title if task.sprint else None
-    return response
+    return task
 
 
-@router.patch("/tasks/{task_id}/status", response_model=TaskResponse)
-async def update_task_status(
-    task_id: int,
-    status_update: TaskStatusUpdate,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """
-    Quick status update for drag-and-drop functionality.
-    Team members can update task status.
-    """
-    result = await db.execute(
-        select(Task)
-        .options(selectinload(Task.sprint))
-        .where(Task.task_id == task_id)
-    )
-    task = result.scalar_one_or_none()
-
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found",
-        )
-
-    # Verify team membership
-    if task.sprint:
-        if current_user.role.role_name.upper() == "STUDENT":
-            if not await verify_team_member(db, task.sprint.team_id, current_user.user_id):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You are not a member of this team",
-                )
-
-    # Validate status
-    if status_update.status not in ["todo", "doing", "done"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid status. Must be: todo, doing, done",
-        )
-
-    task.status = status_update.status
-    await db.commit()
-    await db.refresh(task)
-    await db.refresh(task, attribute_names=["assignee", "sprint"])
-
-    response = TaskResponse.model_validate(task)
-    response.assignee_name = task.assignee.full_name if task.assignee else None
-    response.sprint_title = task.sprint.title if task.sprint else None
-    return response
-
-
-@router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(
     task_id: int,
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-):
+) -> None:
     """
-    Delete Task.
-    Team members can delete tasks.
+    Delete task.
+    Only team leader or admin can delete tasks.
     """
-    result = await db.execute(
-        select(Task)
-        .options(selectinload(Task.sprint))
-        .where(Task.task_id == task_id)
-    )
-    task = result.scalar_one_or_none()
+    result = await db.execute(select(Task).where(Task.task_id == task_id))
+    task = result.scalars().first()
 
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found",
-        )
-
-    # Verify team membership
-    if task.sprint:
-        if current_user.role.role_name.upper() == "STUDENT":
-            if not await verify_team_member(db, task.sprint.team_id, current_user.user_id):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You are not a member of this team",
-                )
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # FIX BUG-01: Check authorization - only leader or admin can delete
+    if current_user.role_id == 5:  # Student
+        membership = await check_team_membership(db, current_user, task.team_id)
+        if membership.role != "Leader":
+            raise HTTPException(
+                status_code=403, 
+                detail="Only team leader can delete tasks"
+            )
 
     await db.delete(task)
     await db.commit()
-    return None
-
-
-# ==========================================
-# STATISTICS ENDPOINTS
-# ==========================================
-
-@router.get("/sprints/{sprint_id}/statistics", response_model=TaskStatistics)
-async def get_sprint_statistics(
-    sprint_id: int,
-    db: AsyncSession = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """Get task statistics for a sprint."""
-    # Verify sprint exists
-    sprint_result = await db.execute(
-        select(Sprint).where(Sprint.sprint_id == sprint_id)
-    )
-    sprint = sprint_result.scalar_one_or_none()
-    if not sprint:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Sprint {sprint_id} not found",
-        )
-
-    # Verify access
-    user_role = current_user.role.role_name.upper()
-    if user_role == "STUDENT":
-        if not await verify_team_member(db, sprint.team_id, current_user.user_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not a member of this team",
-            )
-
-    # Get statistics
-    result = await db.execute(
-        select(
-            func.count().label("total"),
-            func.sum(func.cast(Task.status == "todo", Integer)).label("todo"),
-            func.sum(func.cast(Task.status == "doing", Integer)).label("doing"),
-            func.sum(func.cast(Task.status == "done", Integer)).label("done"),
-        ).where(Task.sprint_id == sprint_id)
-    )
-    stats = result.one()
-
-    total_tasks = stats.total or 0
-    todo_count = stats.todo or 0
-    doing_count = stats.doing or 0
-    done_count = stats.done or 0
-
-    completion_rate = (done_count / total_tasks * 100) if total_tasks > 0 else 0.0
-
-    return TaskStatistics(
-        total_tasks=total_tasks,
-        todo_count=todo_count,
-        doing_count=doing_count,
-        done_count=done_count,
-        completion_rate=round(completion_rate, 2),
-    )

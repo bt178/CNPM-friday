@@ -54,7 +54,6 @@ async def register_user(
 ) -> Any:
     """
     Create new user.
-    Accepts role_name: Admin, Staff, Head Of Department, Lecturer, Student
     """
     # 1. Check email trùng
     result = await db.execute(select(User).where(User.email == user_in.email))
@@ -62,34 +61,19 @@ async def register_user(
     if existing_user:
         raise HTTPException(
             status_code=400,
-            detail="The user with this email already exists in the system.",
+            detail="The user with this username already exists in the system.",
         )
 
-    # 2. Convert role_name to role_id
-    role_id = user_in.get_role_id()
-
-    # 3. Hash password và tạo User
+    # 2. Hash password và tạo User
     user = User(
         email=user_in.email,
         password_hash=security.get_password_hash(user_in.password),
         full_name=user_in.full_name,
-        role_id=role_id,
-        dept_id=user_in.dept_id,
+        role_id=user_in.role_id,
         is_active=True,
     )
     
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    
-    # Build response with role_name
-    return user_schema.UserResponse(
-        user_id=user.user_id,
-        email=user.email,
-        full_name=user.full_name,
-        is_active=user.is_active,
-        role_id=user.role_id,
-        dept_id=user.dept_id,
-        avatar_url=user.avatar_url,
-        role_name=user_in.role_name.value,
-    )
+    return user
