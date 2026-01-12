@@ -28,7 +28,7 @@ const ProjectListView = () => {
 
   // Data State
   const [allData, setAllData] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const savedData = localStorage.getItem('user_profile');
@@ -42,7 +42,7 @@ const ProjectListView = () => {
         // Duplicate data to match original 16 items behavior if desired, or just use res.data
         // The original code did [...initialData, ...initialData]
         const fetchedData = res.data || [];
-        setAllData([...fetchedData, ...fetchedData]);
+        setAllData(fetchedData);
       } catch (error) {
         console.error("Failed to fetch projects", error);
       } finally {
@@ -92,10 +92,10 @@ const ProjectListView = () => {
       return matchesCategory && matchesSearch;
     })
     .sort((a, b) => {
-      // Prioritize "Claimed" status to the bottom
+      // Ưu tiên "Claimed" status
       if (a.status === 'Claimed' && b.status !== 'Claimed') return 1;
       if (a.status !== 'Claimed' && b.status === 'Claimed') return -1;
-      // Secondary sort by topic
+      // Sort bằng topic
       return a.topic.localeCompare(b.topic);
     });
 
@@ -265,21 +265,25 @@ const ProjectListView = () => {
             <Col>
               <Input
                 placeholder="Quick search topic title..."
-                prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />} // Màu icon nhạt giống Admin
+                prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
                 style={{
                   width: 300,
-                  borderRadius: 8, // Bo góc giống Admin
-                  height: '40px',   // Độ cao đồng bộ
+                  borderRadius: 8,
+                  height: '40px',
                   background: '#f0f2f5',
                   border: 'none'
                 }}
                 value={searchText}
-                onChange={(e) => setSearchText(e.target.value)} // Cập nhật state ngay lập tức
+                onChange={(e) => setSearchText(e.target.value)}
                 allowClear
               />
             </Col>
             <Col>
-              <Button style={{ background: '#d9d9d9', border: 'none', borderRadius: 6 }}>Sort by category</Button>
+              <Dropdown overlay={menu} trigger={['click']}>
+                <Button style={{ background: '#d9d9d9', border: 'none', borderRadius: 6 }}>
+                  {selectedCategory ? selectedCategory : 'Sort by category'} <DownOutlined />
+                </Button>
+              </Dropdown>
             </Col>
           </Row>
 
