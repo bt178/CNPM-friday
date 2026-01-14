@@ -13,9 +13,7 @@ Infrastructure: Docker, Docker Compose.
 AI & Real-time: Google Gemini API, Socket.IO.
 
 📂 Cấu trúc dự án (Project Structure)
-Chúng ta sử dụng kiến trúc Service-Layered đơn giản hóa (Pragmatic Architecture).
-
-Plaintext
+Chúng tôi sử dụng kiến trúc Service-Layered đơn giản hóa (Pragmatic Architecture).
 
 CNPM-FRIDAY/
 ├── docker-compose.yml       # File chạy toàn bộ hệ thống (DB, Backend, Frontend)
@@ -40,6 +38,7 @@ CNPM-FRIDAY/
     │   ├── services/        # Gọi API Backend (Axios)
     │   ├── pages/           # Giao diện các trang
     │   └── components/      # Các thành phần UI tái sử dụng
+
 🚀 Hướng dẫn Cài đặt & Chạy (Quick Start)
 Yêu cầu: Máy tính đã cài đặt Docker Desktop.
 

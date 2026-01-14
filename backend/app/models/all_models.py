@@ -14,12 +14,12 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Column,
     Text,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.db.base import Base
 
 
@@ -39,25 +39,45 @@ class Role(Base):
 
 
 class Department(Base):
-    """Department model for academic departments."""
     __tablename__ = "departments"
 
-    dept_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dept_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     dept_name: Mapped[str] = mapped_column(String, unique=True)
+
     dept_head_id: Mapped[Optional[UUID]] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.user_id", use_alter=True), nullable=True
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.user_id"),
+        nullable=True
     )
 
     users: Mapped[list["User"]] = relationship("User", back_populates="department", foreign_keys="[User.dept_id]")
     subjects: Mapped[list["Subject"]] = relationship("Subject", back_populates="department")
     topics: Mapped[list["Topic"]] = relationship("Topic", back_populates="department")
-    dept_head: Mapped[Optional["User"]] = relationship("User", foreign_keys=[dept_head_id])
+
+    # FIX: Explicitly specify foreign_keys to resolve ambiguity
+    users: Mapped[list["User"]] = relationship(
+        "User",
+        back_populates="department",
+        foreign_keys="User.dept_id"  # This tells SQLAlchemy which FK to use
+    )
+
+    dept_head: Mapped[Optional["User"]] = relationship(
+        "User",
+        foreign_keys=[dept_head_id],
+        post_update=True  # Prevents circular dependency issues
+    )
+
+    subjects: Mapped[list["Subject"]] = relationship(
+        "Subject",
+        back_populates="department"
+    )
 
 
 class User(Base):
     """User model storing Admin, Staff, Lecturer, and Student accounts."""
     __tablename__ = "users"
 
+    # Primary fields
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
@@ -69,7 +89,11 @@ class User(Base):
     full_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     role_id: Mapped[int] = mapped_column(Integer, ForeignKey("roles.role_id"))
-    dept_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("departments.dept_id"), nullable=True)
+    dept_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("departments.dept_id"),
+        nullable=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -143,36 +167,39 @@ class AuditLog(Base):
 
 class Semester(Base):
     __tablename__ = "semesters"
+    
     semester_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    semester_code: Mapped[str] = mapped_column(String, unique=True)
-    start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    semester_code: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    semester_name: Mapped[str] = mapped_column(String, nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-
+    
     academic_classes: Mapped[list["AcademicClass"]] = relationship("AcademicClass", back_populates="semester")
-
 
 class Subject(Base):
     __tablename__ = "subjects"
+    
     subject_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     subject_code: Mapped[str] = mapped_column(String, unique=True)
     subject_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     dept_id: Mapped[int] = mapped_column(Integer, ForeignKey("departments.dept_id"))
-
+    credits: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
     department: Mapped["Department"] = relationship("Department", back_populates="subjects")
     syllabuses: Mapped[list["Syllabus"]] = relationship("Syllabus", back_populates="subject")
     academic_classes: Mapped[list["AcademicClass"]] = relationship("AcademicClass", back_populates="subject")
-
-
+    
 class Syllabus(Base):
     __tablename__ = "syllabuses"
+    
     syllabus_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     subject_id: Mapped[int] = mapped_column(Integer, ForeignKey("subjects.subject_id"))
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     min_score_to_pass: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    effective_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-
+    effective_date: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # ✅ ĐỔI từ Date -> String
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    
     subject: Mapped["Subject"] = relationship("Subject", back_populates="syllabuses")
     evaluation_criteria: Mapped[list["EvaluationCriterion"]] = relationship("EvaluationCriterion", back_populates="syllabus")
 
@@ -199,13 +226,15 @@ class AcademicClass(Base):
 
 class ClassEnrollment(Base):
     __tablename__ = "class_enrollments"
+    
     enrollment_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     class_id: Mapped[int] = mapped_column(Integer, ForeignKey("academic_classes.class_id", ondelete="CASCADE"))
-    student_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"))
-
+    student_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.user_id"))
+    enrolled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # "active", "dropped", etc.
+    
     academic_class: Mapped["AcademicClass"] = relationship("AcademicClass", back_populates="enrollments")
     student: Mapped["User"] = relationship("User", back_populates="enrollments")
-
 
 # ==========================================
 # CLUSTER 3: PROJECT & TEAM FORMATION

@@ -38,6 +38,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: collabsphere_backend
+    # ✅ Use .env file instead of hardcoding environment variables
+    env_file:
+      - ./backend/.env
+    # Override only the variables that need to be different in Docker
     environment:
       DATABASE_URL: postgresql+asyncpg://collabsphere:collabsphere_password@db:5432/collabsphere_db
       REDIS_URL: redis://redis:6379/0
@@ -84,4 +88,3 @@ volumes:
 networks:
   collabsphere_network:
     driver: bridge
-

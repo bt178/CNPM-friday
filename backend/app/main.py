@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.db.session import engine
+from app.db.base import Base
 
 from app.core.config import settings
 from app.api.v1.api import api_router  # <--- Import cái router tổng vào
@@ -10,6 +12,12 @@ app = FastAPI(
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+@app.on_event("startup")
+async def on_startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
 
 # Configure CORS
 # SỬA LỖI: Dùng đúng tên biến BACKEND_CORS_ORIGINS trong config.py
