@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs'; // Cài đặt: npm install dayjs 
-import { Layout, Typography, Button, Table, Avatar, Space, Badge, Calendar, Input, Select, Card, Tag, Row, Col, List, message } from 'antd';
+import { Layout, Typography, Button, Table, Avatar, Space, Badge, Calendar, Input, Select, Card, Tag, Row, Col, List, message, Modal } from 'antd';
 import {
   SettingOutlined, BellOutlined, SearchOutlined, FilterOutlined,
   DashboardOutlined, TeamOutlined, DesktopOutlined, TableOutlined,
@@ -70,6 +70,24 @@ const ProjectListView = () => {
       console.error(error);
       message.error('Failed to claim project');
     }
+  };
+  const handleLogout = () => {
+    Modal.confirm({
+      title: 'Xác nhận đăng xuất',
+      content: 'Bạn có chắc chắn muốn thoát khỏi hệ thống không?',
+      okText: 'Đăng xuất',
+      cancelText: 'Hủy',
+      onOk: () => {
+        // Gọi service xóa dữ liệu
+        localStorage.removeItem('user_profile');
+        localStorage.removeItem('user_avatar');
+
+        message.success('Đã đăng xuất thành công');
+
+        // Chuyển hướng về trang Login
+        navigate('/login');
+      },
+    });
   };
 
   // Logic xử lý Lịch
@@ -243,7 +261,15 @@ const ProjectListView = () => {
                 <Button type="text" block icon={<SettingOutlined />} style={{ textAlign: collapsed ? 'center' : 'left' }} onClick={() => navigate('/profile')}>
                   {!collapsed && "Settings"}
                 </Button>
-                <Button type="text" block icon={<LogoutOutlined />} style={{ textAlign: collapsed ? 'center' : 'left' }}>
+
+                <Button
+                  type="text"
+                  block
+                  danger // Thêm màu đỏ để cảnh báo
+                  icon={<LogoutOutlined />}
+                  style={{ textAlign: collapsed ? 'center' : 'left' }}
+                  onClick={handleLogout}
+                >
                   {!collapsed && "Logout"}
                 </Button>
               </Space>

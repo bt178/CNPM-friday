@@ -17,7 +17,8 @@ const UserProfile = () => {
     return savedData ? JSON.parse(savedData) : {
       name: 'Tong duc huy',
       email: 'Test@gmail.com',
-      phone: '0495558839'
+      phone: '0495558839',
+      role: 'Student' //vai trò mặc định 
     };
   });
 
@@ -31,6 +32,8 @@ const UserProfile = () => {
     { name: 'Student', dotColor: '#52c41a' }
   ];
 
+  const currentRole = roles.find(r => r.name === (userData.role || 'Student')) || roles.find(r => r.name === 'Student');
+
   // Lưu dữ liệu mỗi khi userData thay đổi
   useEffect(() => {
     localStorage.setItem('user_profile', JSON.stringify(userData));
@@ -39,6 +42,9 @@ const UserProfile = () => {
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) { // Giới hạn 2MB
+        return message.error('Ảnh quá lớn! Vui lòng chọn ảnh dưới 2MB.');
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result;
@@ -51,18 +57,29 @@ const UserProfile = () => {
   };
 
   const onUpdateProfile = (values) => {
-    setUserData(values);
-    message.success('Cập nhật thông tin thành column thành công!');
+    setUserData(prev => ({ ...prev, ...values }));
+    message.success('Cập nhật thông tin thành công!');
     setIsEditModalOpen(false);
   };
 
-  const handleUpdatePassword = () => {
-    formPassword.validateFields().then(() => {
-      message.success('Đổi mật khẩu thành công!');
-      formPassword.resetFields();
-    }).catch(() => {
-      message.error('Vui lòng điền đầy đủ thông tin!');
-    });
+  const handleUpdatePassword = async () => {
+    try {
+      const values = await formPassword.validateFields();
+      if (values.new !== values.confirm) {
+        return message.error('Mật khẩu xác nhận không trùng khớp!');
+      }
+
+      console.log("Đang đổi mật khẩu...", values);
+      message.loading({ content: 'Đang xử lý...', key: 'updatable' });
+
+      setTimeout(() => {
+        message.success({ content: 'Đổi mật khẩu thành công!', key: 'updatable', duration: 2 });
+        formPassword.resetFields();
+      }, 1000);
+
+    } catch (error) {
+      //tự hiển thị lỗi
+    }
   };
 
   return (
@@ -125,12 +142,10 @@ const UserProfile = () => {
             <Card style={{ background: '#f5f5f5', borderRadius: 24, border: 'none' }}>
               <Title level={4} style={{ marginBottom: 20 }}>Assigned Roles</Title>
               <Space wrap size={12}>
-                {roles.map(role => (
-                  <Tag key={role.name} style={{ backgroundColor: 'white', color: 'black', borderRadius: 20, padding: '5px 18px', border: '1px solid #d9d9d9', fontSize: '14px' }}>
-                    <span style={{ display: 'inline-block', width: 8, height: 8, backgroundColor: role.dotColor, borderRadius: '50%', marginRight: 8 }} />
-                    {role.name}
-                  </Tag>
-                ))}
+                <Tag style={{ backgroundColor: 'white', color: 'black', borderRadius: 20, padding: '5px 18px', border: '1px solid #d9d9d9', fontSize: '14px' }}>
+                  <span style={{ display: 'inline-block', width: 8, height: 8, backgroundColor: currentRole.dotColor, borderRadius: '50%', marginRight: 8 }} />
+                  {currentRole.name}
+                </Tag>
               </Space>
             </Card>
           </Col>
@@ -141,8 +156,26 @@ const UserProfile = () => {
       <Modal title="Edit Profile Information" open={isEditModalOpen} onCancel={() => setIsEditModalOpen(false)} onOk={() => formProfile.submit()}>
         <Form form={formProfile} layout="vertical" onFinish={onUpdateProfile}>
           <Form.Item name="name" label="Full Name" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="email" label="Email Address" rules={[{ required: true, type: 'email' }]}><Input prefix={<MailOutlined />} /></Form.Item>
-          <Form.Item name="phone" label="Phone Number"><Input /></Form.Item>
+          <Form.Item
+            name="email"
+            label="Email Address"
+            rules={[
+              { required: true, message: 'Please input your email!' },
+              { pattern: /^[a-zA-Z0-9._%+-]+@(gmail\.com|ut\.edu\.vn)$/, message: 'Email must be @gmail.com or @ut.edu.vn' }
+            ]}
+          >
+            <Input prefix={<MailOutlined />} />
+          </Form.Item>
+          <Form.Item
+            name="phone"
+            label="Phone Number"
+            rules={[
+              { required: true, message: 'Please input your phone number!' },
+              { pattern: /^\d{9,10}$/, message: 'Phone number must be digits only and 9-10 characters long.' }
+            ]}
+          >
+            <Input />
+          </Form.Item>
         </Form>
       </Modal>
     </Layout>

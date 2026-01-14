@@ -128,3 +128,6 @@ docker-compose up --build
 Kiểm tra xem Backend đã chạy chưa (vào link Swagger xem được không).
 
 Kiểm tra file backend/app/core/config.py xem đã thêm http://localhost:3000 vào BACKEND_CORS_ORIGINS chưa.
+
+# các bugs
+nhiều project bị lặp lại là do dùng để test chức năng cuộn của bảng project, chưa có dữ liệu thực tế.
