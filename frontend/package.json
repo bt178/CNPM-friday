@@ -10,13 +10,14 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "antd": "^5.12.0",
     "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "peerjs": "^1.5.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "socket.io-client": "^4.6.1",
-    "peerjs": "^1.5.2"
+    "socket.io-client": "^4.6.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
@@ -29,4 +30,3 @@
     "vite": "^5.0.8"
   }
 }
-
