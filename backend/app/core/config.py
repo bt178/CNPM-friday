@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # Database
-    DATABASE_URL: str = "postgresql://collabsphere:collabsphere_password@localhost:5432/collabsphere_db"
+    # SỬA LỖI: Thêm +asyncpg để chạy async SQLAlchemy
+    DATABASE_URL: str = "postgresql+asyncpg://collabsphere:collabsphere_password@localhost:5432/collabsphere_db"
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -26,7 +27,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # CORS - can be set as comma-separated string in env
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    # SỬA LỖI: Thêm * để linh hoạt khi test máy khác, hoặc liệt kê IP cụ thể
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,*"
     
     # Google Gemini API
     GOOGLE_GEMINI_API_KEY: str = ""

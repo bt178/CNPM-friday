@@ -9,6 +9,7 @@ from jose import jwt, JWTError
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core import config, security
 from app.db.session import AsyncSessionLocal
@@ -55,7 +56,11 @@ async def get_current_user(
         )
 
     # Fetch user from DB
-    result = await db.execute(select(User).where(User.user_id == token_data))
+    result = await db.execute(
+        select(User)
+        .where(User.user_id == token_data)
+        .options(selectinload(User.role))
+    )
     user = result.scalars().first()
 
     if not user:

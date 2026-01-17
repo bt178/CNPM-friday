@@ -20,4 +20,4 @@ class UserResponse(UserBase):
     avatar_url: Optional[str] = None
 
     class Config:
-        from_attributes = True  # Để đọc được dữ liệu từ SQLAlchemy model
+        from_attributes = True  # Để đọc được dữ liệu từ SQLAlchemy model   

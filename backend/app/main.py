@@ -1,8 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.db.session import engine
+from app.db.base import Base
 
 from app.core.config import settings
 from app.api.v1.api import api_router  # <--- Import cái router tổng vào
+from app.db.base import Base
+from app.db.session import engine
+from app.models import all_models  # noqa: F401  # Ensure models register with Base
+from app.models.all_models import Role
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -10,6 +16,12 @@ app = FastAPI(
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+@app.on_event("startup")
+async def on_startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
 
 # Configure CORS
 # SỬA LỖI: Dùng đúng tên biến BACKEND_CORS_ORIGINS trong config.py
@@ -25,6 +37,31 @@ if settings.BACKEND_CORS_ORIGINS:
 # KẾT NỐI ROUTER (QUAN TRỌNG NHẤT)
 # Dòng này sẽ đưa các API auth/login vào hệ thống
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+DEFAULT_ROLES = [
+    {"role_id": 1, "role_name": "Admin"},
+    {"role_id": 2, "role_name": "Staff"},
+    {"role_id": 3, "role_name": "Head_Dept"},
+    {"role_id": 4, "role_name": "Lecturer"},
+    {"role_id": 5, "role_name": "Student"},
+]
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    """Ensure database schema and seed data are present before serving requests."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+        # Seed default roles to satisfy FK constraints
+        for role in DEFAULT_ROLES:
+            stmt = (
+                insert(Role)
+                .values(**role)
+                .on_conflict_do_nothing(index_elements=[Role.role_id])
+            )
+            await conn.execute(stmt)
 
 @app.get("/test")
 async def test():
