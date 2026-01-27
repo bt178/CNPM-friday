@@ -12,11 +12,12 @@ app = FastAPI(
 )
 
 # Configure CORS
-# SỬA LỖI: Dùng đúng tên biến BACKEND_CORS_ORIGINS trong config.py
-if settings.BACKEND_CORS_ORIGINS:
+# Always fall back to permissive origins during local development if none are provided
+allowed_origins = settings.BACKEND_CORS_ORIGINS or ["*"]
+if allowed_origins:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_origins=[str(origin) for origin in allowed_origins],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

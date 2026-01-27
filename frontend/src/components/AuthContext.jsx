@@ -1,15 +1,88 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axiosInstance from '../services/api';
+import SessionTimeoutPrompt from './SessionTimeoutPrompt';
 
 const STORAGE_KEYS = {
     token: 'access_token',
     user: 'user',
 };
 
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const IDLE_PROMPT_COUNTDOWN_SECONDS = 30;
+
+const ROLE_ID_TO_NAME = {
+    1: 'ADMIN',
+    2: 'STAFF',
+    3: 'HEAD_DEPT',
+    4: 'LECTURER',
+    5: 'STUDENT',
+};
+
+const ADMIN_ROLE_NAMES = new Set(['ADMIN', 'STAFF', 'HEAD_DEPT']);
+
+export const resolveRoleName = (user) => {
+    if (!user) {
+        return null;
+    }
+
+    const normalized = (value) => (typeof value === 'string' ? value.toUpperCase() : null);
+
+    return (
+        normalized(user.role_name) ||
+        normalized(user.role?.name) ||
+        normalized(user.role?.role_name) ||
+        normalized(user.role) ||
+        ROLE_ID_TO_NAME[user.role_id || user.role?.role_id] ||
+        null
+    );
+};
+
+export const getDefaultDashboardPath = (user) => {
+    const roleName = resolveRoleName(user);
+    if (roleName && ADMIN_ROLE_NAMES.has(roleName)) {
+        return '/admin';
+    }
+    return '/dashboard';
+};
+
 const AuthContext = createContext();
 
 const canUseStorage = () => typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+
+const buildScopedKey = (baseKey, user) => {
+    const identifier = user?.user_id || user?.email || user?.id;
+    return identifier ? `${baseKey}_${identifier}` : null;
+};
+
+const readScopedJson = (baseKey, user) => {
+    if (!canUseStorage()) {
+        return null;
+    }
+    const scopedKey = buildScopedKey(baseKey, user);
+    const scopedRaw = scopedKey ? window.localStorage.getItem(scopedKey) : null;
+    const raw = scopedRaw || window.localStorage.getItem(baseKey);
+    if (!raw) {
+        return null;
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        if (!scopedRaw && parsed && parsed._owner && user?.email && parsed._owner !== user.email) {
+            return null;
+        }
+        return parsed;
+    } catch (_err) {
+        return null;
+    }
+};
+
+const readScopedValue = (baseKey, user) => {
+    if (!canUseStorage()) {
+        return null;
+    }
+    const scopedKey = buildScopedKey(baseKey, user);
+    return (scopedKey && window.localStorage.getItem(scopedKey)) || window.localStorage.getItem(baseKey);
+};
 
 const parseUser = (value) => {
     if (!value) return null;
@@ -18,6 +91,22 @@ const parseUser = (value) => {
     } catch (_err) {
         return null;
     }
+};
+
+const extractErrorMessage = (err, fallback) => {
+    const detail = err?.response?.data?.detail;
+    if (Array.isArray(detail)) {
+        return detail
+            .map((item) => item?.msg || item?.message || JSON.stringify(item))
+            .join(', ');
+    }
+    if (typeof detail === 'string') {
+        return detail;
+    }
+    if (detail && typeof detail === 'object') {
+        return detail?.msg || detail?.message || JSON.stringify(detail);
+    }
+    return fallback;
 };
 
 const readStoredSession = () => {
@@ -29,6 +118,19 @@ const readStoredSession = () => {
     const storedUser = parseUser(storedUserRaw);
     if (!storedUser && storedUserRaw) {
         window.localStorage.removeItem(STORAGE_KEYS.user);
+    }
+    if (storedUser) {
+        const profile = readScopedJson('user_profile', storedUser);
+        const avatarUrl = readScopedValue('user_avatar', storedUser);
+        if (profile?.name) {
+            storedUser.full_name = profile.name;
+        }
+        if (profile?.email) {
+            storedUser.email = profile.email;
+        }
+        if (avatarUrl) {
+            storedUser.avatar_url = avatarUrl;
+        }
     }
     return { token: storedToken, user: storedUser };
 };
@@ -58,8 +160,65 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isAuthReady, setIsAuthReady] = useState(false);
+    const [idlePromptVisible, setIdlePromptVisible] = useState(false);
+    const [idleCountdown, setIdleCountdown] = useState(0);
+
+    const idleTimerRef = useRef(null);
+    const countdownTimerRef = useRef(null);
 
     const clearError = useCallback(() => setError(null), []);
+
+    const clearIdleTimer = useCallback(() => {
+        if (!idleTimerRef.current) {
+            return;
+        }
+        const timerId = idleTimerRef.current;
+        idleTimerRef.current = null;
+        if (typeof window !== 'undefined') {
+            window.clearTimeout(timerId);
+        } else {
+            clearTimeout(timerId);
+        }
+    }, []);
+
+    const clearCountdownTimer = useCallback(() => {
+        if (!countdownTimerRef.current) {
+            return;
+        }
+        const timerId = countdownTimerRef.current;
+        countdownTimerRef.current = null;
+        if (typeof window !== 'undefined') {
+            window.clearInterval(timerId);
+        } else {
+            clearInterval(timerId);
+        }
+    }, []);
+
+    const dismissIdlePrompt = useCallback(() => {
+        setIdlePromptVisible(false);
+        setIdleCountdown(0);
+    }, []);
+
+    const startIdleTimer = useCallback(() => {
+        if (!user || !token) {
+            return;
+        }
+        if (typeof window === 'undefined') {
+            return;
+        }
+        clearIdleTimer();
+        idleTimerRef.current = window.setTimeout(() => {
+            setIdlePromptVisible(true);
+        }, IDLE_TIMEOUT_MS);
+    }, [user, token, clearIdleTimer]);
+
+    const registerUserActivity = useCallback(() => {
+        if (!user || !token) {
+            return;
+        }
+        dismissIdlePrompt();
+        startIdleTimer();
+    }, [user, token, dismissIdlePrompt, startIdleTimer]);
 
     useEffect(() => {
         const storedSession = readStoredSession();
@@ -100,6 +259,72 @@ export const AuthProvider = ({ children }) => {
         clearError();
     }, [location.pathname, clearError]);
 
+    const logout = useCallback(() => {
+        persistSession(null, null);
+        setToken(null);
+        setUser(null);
+        clearError();
+        dismissIdlePrompt();
+        clearIdleTimer();
+        clearCountdownTimer();
+        navigate('/login', { replace: true });
+    }, [navigate, clearError, dismissIdlePrompt, clearIdleTimer, clearCountdownTimer]);
+
+    useEffect(() => {
+        if (!idlePromptVisible) {
+            clearCountdownTimer();
+            return undefined;
+        }
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+        setIdleCountdown(IDLE_PROMPT_COUNTDOWN_SECONDS);
+        clearCountdownTimer();
+        countdownTimerRef.current = window.setInterval(() => {
+            setIdleCountdown((prev) => {
+                if (prev <= 1) {
+                    clearCountdownTimer();
+                    logout();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearCountdownTimer();
+    }, [idlePromptVisible, logout, clearCountdownTimer]);
+
+    useEffect(() => {
+        if (!user || !token) {
+            clearIdleTimer();
+            dismissIdlePrompt();
+            return undefined;
+        }
+        if (typeof window === 'undefined' || typeof document === 'undefined') {
+            return undefined;
+        }
+        const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'wheel'];
+        const handleActivity = () => registerUserActivity();
+        const handleVisibility = () => {
+            if (!document.hidden) {
+                registerUserActivity();
+            }
+        };
+
+        activityEvents.forEach((event) => window.addEventListener(event, handleActivity));
+        document.addEventListener('visibilitychange', handleVisibility);
+        registerUserActivity();
+
+        return () => {
+            activityEvents.forEach((event) => window.removeEventListener(event, handleActivity));
+            document.removeEventListener('visibilitychange', handleVisibility);
+            clearIdleTimer();
+        };
+    }, [user, token, registerUserActivity, clearIdleTimer, dismissIdlePrompt]);
+
+    const handleStayActive = useCallback(() => {
+        registerUserActivity();
+    }, [registerUserActivity]);
+
     const login = async (email, password) => {
         setLoading(true);
         clearError();
@@ -108,7 +333,7 @@ export const AuthProvider = ({ children }) => {
             params.append('username', email);
             params.append('password', password);
             params.append('grant_type', 'password');
-            const res = await axiosInstance.post('/api/v1/auth/login', params, {
+            const res = await axiosInstance.post('/auth/login', params, {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             });
 
@@ -116,7 +341,7 @@ export const AuthProvider = ({ children }) => {
             setToken(accessToken);
             persistSession(accessToken, null);
 
-            const profileRes = await axiosInstance.get('/api/v1/users/me', {
+            const profileRes = await axiosInstance.get('/users/me', {
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
 
@@ -124,9 +349,9 @@ export const AuthProvider = ({ children }) => {
             setUser(sessionUser);
             persistSession(accessToken, sessionUser);
 
-            navigate('/dashboard', { replace: true });
+            navigate(getDefaultDashboardPath(sessionUser), { replace: true });
         } catch (err) {
-            setError(err.response?.data?.detail || 'Login failed');
+            setError(extractErrorMessage(err, 'Login failed'));
         } finally {
             setLoading(false);
         }
@@ -136,27 +361,36 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         clearError();
         try {
-            const res = await axiosInstance.post('/api/v1/auth/register', registerData);
-            setUser(res.data);
-            navigate('/login');
+            await axiosInstance.post('/auth/register', registerData);
+            navigate('/login', { replace: true });
         } catch (err) {
-            setError(err.response?.data?.detail || 'Registration failed');
+            setError(extractErrorMessage(err, 'Registration failed'));
         } finally {
             setLoading(false);
         }
     };
 
-    const logout = () => {
-        persistSession(null, null);
-        setToken(null);
-        setUser(null);
-        clearError();
-        navigate('/login', { replace: true });
-    };
+    const updateUser = useCallback((updates) => {
+        setUser((prev) => {
+            if (!prev) {
+                return prev;
+            }
+            const nextUser = { ...prev, ...updates };
+            persistSession(token, nextUser);
+            return nextUser;
+        });
+    }, [token]);
 
     return (
-        <AuthContext.Provider value={{ user, token, loading, error, login, register, logout, isAuthReady, clearError }}>
+        <AuthContext.Provider value={{ user, token, loading, error, login, register, logout, isAuthReady, clearError, updateUser }}>
             {children}
+            {idlePromptVisible && (
+                <SessionTimeoutPrompt
+                    secondsRemaining={idleCountdown}
+                    onStayActive={handleStayActive}
+                    onSignOut={logout}
+                />
+            )}
         </AuthContext.Provider>
     );
 };

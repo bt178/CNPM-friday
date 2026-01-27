@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.core import security
 from app.core.config import settings
-from app.models.all_models import User
+from app.models.all_models import Role, User
 from app.schemas import token as token_schema
 from app.schemas import user as user_schema
 
@@ -65,9 +65,22 @@ async def register_user(
         )
 
     # 2. Hash password và tạo User
+    try:
+        hashed_password = security.get_password_hash(user_in.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    role_result = await db.execute(select(Role).where(Role.role_id == user_in.role_id))
+    role = role_result.scalars().first()
+    if not role:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid role_id. Use one of: 1=Admin, 2=Staff, 3=Head_Dept, 4=Lecturer, 5=Student.",
+        )
+
     user = User(
         email=user_in.email,
-        password_hash=security.get_password_hash(user_in.password),
+        password_hash=hashed_password,
         full_name=user_in.full_name,
         role_id=user_in.role_id,
         is_active=True,

@@ -165,3 +165,5 @@ export const projectService = {
     return { data: localProjects[idx] };
   }
 };
+
+export default api;

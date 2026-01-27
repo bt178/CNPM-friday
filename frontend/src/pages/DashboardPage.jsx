@@ -16,7 +16,7 @@ import {
     LeftOutlined, RightOutlined, DeleteOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useAuth } from '../components/AuthContext';
+import { useAuth, resolveRoleName } from '../components/AuthContext';
 import './DashboardPage.css';
 
 const { Title, Text } = Typography;
@@ -45,14 +45,93 @@ const readScopedAvatar = (storageKey, fallback) => {
     return scopedValue || fallback;
 };
 
+const readScopedProfile = (storageKey, user) => {
+    if (!canUseStorage() || !storageKey) {
+        return null;
+    }
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) {
+        return null;
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed?._owner && user?.email && parsed._owner !== user.email) {
+            return null;
+        }
+        return parsed;
+    } catch (_err) {
+        return null;
+    }
+};
+
+const readActiveProjectsPayload = (storageKey, user) => {
+    if (!canUseStorage()) {
+        return [];
+    }
+    const scopedRaw = storageKey ? window.localStorage.getItem(storageKey) : null;
+    const raw = scopedRaw || window.localStorage.getItem('active_projects');
+    if (!raw) {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            return parsed;
+        }
+        if (parsed && Array.isArray(parsed.items)) {
+            if (!scopedRaw && parsed._owner && user?.email && parsed._owner !== user.email) {
+                return [];
+            }
+            return parsed.items;
+        }
+        return [];
+    } catch (_err) {
+        return [];
+    }
+};
+
+const getProjectIcon = (project) => {
+    if (React.isValidElement(project.icon)) {
+        return project.icon;
+    }
+    if (project.iconType === 'project') {
+        return <ProjectOutlined />;
+    }
+    return <ProjectOutlined />;
+};
+
 const ProjectDashboard = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
     const [isNotificationOpen, setNotificationOpen] = useState(false);
     const notificationAnchorRef = useRef(null);
+    const profileStorageKey = useMemo(() => buildScopedKey('user_profile', user), [user]);
     const avatarStorageKey = useMemo(() => buildScopedKey(STORAGE_BASE_KEYS.avatar, user), [user]);
+    const activeProjectsStorageKey = useMemo(() => buildScopedKey('active_projects', user), [user]);
     const [avatarUrl, setAvatarUrl] = useState(() => readScopedAvatar(avatarStorageKey, user?.avatar_url || null));
+    const [profileSnapshot, setProfileSnapshot] = useState(() => {
+        const scoped = readScopedProfile(profileStorageKey, user);
+        if (scoped) {
+            return scoped;
+        }
+        if (!canUseStorage()) {
+            return null;
+        }
+        const raw = window.localStorage.getItem('user_profile');
+        if (!raw) {
+            return null;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed?._owner && user?.email && parsed._owner !== user.email) {
+                return null;
+            }
+            return parsed;
+        } catch (_err) {
+            return null;
+        }
+    });
 
     useEffect(() => {
         if (!canUseStorage()) {
@@ -66,6 +145,81 @@ const ProjectDashboard = () => {
     }, [avatarStorageKey, user?.avatar_url]);
 
     useEffect(() => {
+        const handleAvatarUpdated = () => {
+            setAvatarUrl(readScopedAvatar(avatarStorageKey, user?.avatar_url || null));
+        };
+
+        window.addEventListener('avatar-updated', handleAvatarUpdated);
+        window.addEventListener('storage', handleAvatarUpdated);
+        return () => {
+            window.removeEventListener('avatar-updated', handleAvatarUpdated);
+            window.removeEventListener('storage', handleAvatarUpdated);
+        };
+    }, [avatarStorageKey, user?.avatar_url]);
+
+    useEffect(() => {
+        const scopedProfile = readScopedProfile(profileStorageKey, user);
+        if (scopedProfile) {
+            setProfileSnapshot(scopedProfile);
+            return;
+        }
+        if (!canUseStorage()) {
+            setProfileSnapshot(null);
+            return;
+        }
+        const raw = window.localStorage.getItem('user_profile');
+        if (!raw) {
+            setProfileSnapshot(null);
+            return;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed?._owner && user?.email && parsed._owner !== user.email) {
+                setProfileSnapshot(null);
+                return;
+            }
+            setProfileSnapshot(parsed);
+        } catch (_err) {
+            setProfileSnapshot(null);
+        }
+    }, [profileStorageKey, user?.full_name, user?.email]);
+
+    useEffect(() => {
+        const handleProfileUpdated = () => {
+            const scopedProfile = readScopedProfile(profileStorageKey, user);
+            if (scopedProfile) {
+                setProfileSnapshot(scopedProfile);
+                return;
+            }
+            if (!canUseStorage()) {
+                return;
+            }
+            const raw = window.localStorage.getItem('user_profile');
+            if (!raw) {
+                setProfileSnapshot(null);
+                return;
+            }
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed?._owner && user?.email && parsed._owner !== user.email) {
+                    setProfileSnapshot(null);
+                    return;
+                }
+                setProfileSnapshot(parsed);
+            } catch (_err) {
+                setProfileSnapshot(null);
+            }
+        };
+
+        window.addEventListener('profile-updated', handleProfileUpdated);
+        window.addEventListener('storage', handleProfileUpdated);
+        return () => {
+            window.removeEventListener('profile-updated', handleProfileUpdated);
+            window.removeEventListener('storage', handleProfileUpdated);
+        };
+    }, [profileStorageKey, user]);
+
+    useEffect(() => {
         if (!canUseStorage() || !avatarStorageKey) {
             return;
         }
@@ -77,14 +231,12 @@ const ProjectDashboard = () => {
     }, [avatarUrl, avatarStorageKey]);
     const greetingName = useMemo(() => {
         const fallback = user?.email || 'there';
-        const source = user?.full_name || fallback;
+        const source = profileSnapshot?.name || user?.full_name || fallback;
         const parts = source.trim().split(' ').filter(Boolean);
         return parts.length ? parts[parts.length - 1] : source;
-    }, [user]);
+    }, [profileSnapshot?.name, user]);
     const [currentDate, setCurrentDate] = useState(dayjs());
-    const [isProjectModalOpen, setProjectModalOpen] = useState(false);
     const [isEventModalOpen, setEventModalOpen] = useState(false);
-    const [projectForm] = Form.useForm();
     const [eventForm] = Form.useForm();
     const [totalFiles, setTotalFiles] = useState(124);
     const [storageUsage, setStorageUsage] = useState(65);
@@ -143,13 +295,122 @@ const ProjectDashboard = () => {
         }
     };
 
+    // Determine Role
+    const userRole = useMemo(() => {
+        const rawRole = resolveRoleName(user) || 'Student'; // Fallback
+        // Normalize for display: "HEAD_DEPT" -> "Head Dept"
+        return rawRole
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }, [user]);
+
+    // Role-based Data
+    const roleBasedProjects = useMemo(() => {
+        const roleUpper = userRole.toUpperCase();
+        if (roleUpper === 'STUDENT') {
+            return [
+                { id: 1, title: 'Introduction to AI', description: 'Complete the weekly assignments and quiz', icon: <PlayCircleOutlined /> },
+                { id: 2, title: 'Web Development', description: 'Build a personal portfolio website', icon: <PlayCircleOutlined /> },
+                { id: 3, title: 'Database Systems', description: 'Design a relational database schema', icon: <PlayCircleOutlined /> },
+            ];
+        } else if (roleUpper === 'LECTURER' || roleUpper === 'ADMIN' || roleUpper === 'STAFF') {
+            return [
+                { id: 1, title: 'AI Course Grading', description: 'Grade the midterm submissions', icon: <PlayCircleOutlined /> },
+                { id: 2, title: 'Curriculum Review', description: 'Update the syllabus for next semester', icon: <PlayCircleOutlined /> },
+                { id: 3, title: 'Research Grant', description: 'Prepare proposal for research funding', icon: <PlayCircleOutlined /> },
+                { id: 4, title: 'Department Meeting', description: 'Weekly sync with faculty members', icon: <PlayCircleOutlined /> },
+            ];
+        }
+        return [
+            { id: 1, title: 'Project A', description: 'Website redesign with improved UX and responsive layout', icon: <PlayCircleOutlined /> },
+            { id: 2, title: 'Project B', description: 'Mobile app development for campus navigation', icon: <PlayCircleOutlined /> },
+            { id: 3, title: 'Project C', description: 'AI-powered learning assistant system', icon: <PlayCircleOutlined /> },
+            { id: 4, title: 'Project D', description: 'E-commerce platform optimization', icon: <PlayCircleOutlined /> },
+        ];
+    }, [userRole]);
+
+    const roleBasedTimeline = useMemo(() => {
+        const roleUpper = userRole.toUpperCase();
+        if (roleUpper === 'STUDENT') {
+            return [
+                { id: 101, date: 'Nov. 10, 2025', project: 'Intro to AI', description: 'Submitted Assignment 1', status: 'completed' },
+                { id: 102, date: 'Nov. 12, 2025', project: 'Web Dev', description: 'Started working on Portfolio', status: 'in-progress' },
+                { id: 103, date: 'Nov. 15, 2025', project: 'Database', description: 'Quiz 2 due', status: 'pending' },
+            ];
+        } else if (roleUpper === 'LECTURER' || roleUpper === 'ADMIN' || roleUpper === 'STAFF') {
+            return [
+                { id: 101, date: 'Nov. 10, 2025', project: 'AI Grading', description: 'Completed grading for section A', status: 'completed' },
+                { id: 102, date: 'Nov. 12, 2025', project: 'Curriculum', description: 'Drafted new module', status: 'in-progress' },
+                { id: 103, date: 'Nov. 15, 2025', project: 'Meeting', description: 'Faculty board meeting', status: 'pending' },
+            ];
+        }
+        return [
+            { id: 101, date: 'Nov. 10, 2025', project: 'Project A', description: 'Project kickoff meeting and requirements gathering', status: 'completed' },
+            { id: 102, date: 'Nov. 12, 2025', project: 'Project B', description: 'Initial design review and feedback session', status: 'in-progress' },
+            { id: 103, date: 'Nov. 15, 2025', project: 'Project C', description: 'Development sprint planning and task assignment', status: 'pending' },
+            { id: 104, date: 'Nov. 17, 2025', project: 'Project D', description: 'Client presentation and milestone review', status: 'in-progress' },
+            { id: 105, date: 'Nov. 20, 2025', project: 'Project A', description: 'User testing phase begins', status: 'pending' },
+        ];
+    }, [userRole]);
+
+
     // Active Projects Data
-    const [activeProjects, setActiveProjects] = useState([
-        { id: 1, title: 'Project A', description: 'Website redesign with improved UX and responsive layout', icon: <PlayCircleOutlined /> },
-        { id: 2, title: 'Project B', description: 'Mobile app development for campus navigation', icon: <PlayCircleOutlined /> },
-        { id: 3, title: 'Project C', description: 'AI-powered learning assistant system', icon: <PlayCircleOutlined /> },
-        { id: 4, title: 'Project D', description: 'E-commerce platform optimization', icon: <PlayCircleOutlined /> },
-    ]);
+    const [activeProjects, setActiveProjects] = useState(() => {
+        const stored = readActiveProjectsPayload(activeProjectsStorageKey, user);
+        return [...roleBasedProjects, ...stored].reduce((acc, item) => {
+            const id = String(item.id ?? item.title ?? Math.random());
+            if (acc.some((existing) => String(existing.id ?? existing.title) === id)) {
+                return acc;
+            }
+            acc.push(item);
+            return acc;
+        }, []);
+    });
+
+    // Update state when role changes
+    useEffect(() => {
+        const stored = readActiveProjectsPayload(activeProjectsStorageKey, user);
+        const merged = [...roleBasedProjects, ...stored].reduce((acc, item) => {
+            const id = String(item.id ?? item.title ?? Math.random());
+            if (acc.some((existing) => String(existing.id ?? existing.title) === id)) {
+                return acc;
+            }
+            acc.push(item);
+            return acc;
+        }, []);
+        setActiveProjects(merged);
+    }, [roleBasedProjects, activeProjectsStorageKey, user]);
+
+    useEffect(() => {
+        const handleActiveProjectsUpdate = () => {
+            const stored = readActiveProjectsPayload(activeProjectsStorageKey, user);
+            const merged = [...roleBasedProjects, ...stored].reduce((acc, item) => {
+                const id = String(item.id ?? item.title ?? Math.random());
+                if (acc.some((existing) => String(existing.id ?? existing.title) === id)) {
+                    return acc;
+                }
+                acc.push(item);
+                return acc;
+            }, []);
+            setActiveProjects(merged);
+        };
+
+        window.addEventListener('active-projects-updated', handleActiveProjectsUpdate);
+        window.addEventListener('storage', handleActiveProjectsUpdate);
+        return () => {
+            window.removeEventListener('active-projects-updated', handleActiveProjectsUpdate);
+            window.removeEventListener('storage', handleActiveProjectsUpdate);
+        };
+    }, [activeProjectsStorageKey, roleBasedProjects, user]);
+
+    // Timeline Data
+    const [timelineData, setTimelineData] = useState(roleBasedTimeline);
+
+    // Update state when role changes
+    useEffect(() => {
+        setTimelineData(roleBasedTimeline);
+    }, [roleBasedTimeline]);
 
     // Recent Files Data
     const [recentFiles, setRecentFiles] = useState([
@@ -268,15 +529,6 @@ const ProjectDashboard = () => {
         message.success('File removed');
     };
 
-    // Timeline Data
-    const [timelineData, setTimelineData] = useState([
-        { id: 101, date: 'Nov. 10, 2025', project: 'Project A', description: 'Project kickoff meeting and requirements gathering', status: 'completed' },
-        { id: 102, date: 'Nov. 12, 2025', project: 'Project B', description: 'Initial design review and feedback session', status: 'in-progress' },
-        { id: 103, date: 'Nov. 15, 2025', project: 'Project C', description: 'Development sprint planning and task assignment', status: 'pending' },
-        { id: 104, date: 'Nov. 17, 2025', project: 'Project D', description: 'Client presentation and milestone review', status: 'in-progress' },
-        { id: 105, date: 'Nov. 20, 2025', project: 'Project A', description: 'User testing phase begins', status: 'pending' },
-    ]);
-
     // Recent Activities Data
     const recentActivities = [
         'Smart Inventory System',
@@ -302,18 +554,7 @@ const ProjectDashboard = () => {
         }
     };
 
-    const handleProjectSubmit = (values) => {
-        const newProject = {
-            id: Date.now(),
-            title: values.title,
-            description: values.description,
-            icon: <PlayCircleOutlined />,
-        };
-        setActiveProjects((prev) => [newProject, ...prev]);
-        message.success('Project created');
-        setProjectModalOpen(false);
-        projectForm.resetFields();
-    };
+
 
     const handleEventSubmit = (values) => {
         const newEvent = {
@@ -331,6 +572,14 @@ const ProjectDashboard = () => {
 
     const deleteProject = (id) => {
         setActiveProjects((prev) => prev.filter((project) => project.id !== id));
+        if (canUseStorage() && activeProjectsStorageKey) {
+            const stored = readActiveProjectsPayload(activeProjectsStorageKey, user);
+            const nextItems = stored.filter((project) => String(project.id) !== String(id));
+            const payload = { _owner: user?.email || null, items: nextItems };
+            window.localStorage.setItem(activeProjectsStorageKey, JSON.stringify(payload));
+            window.localStorage.setItem('active_projects', JSON.stringify(payload));
+            window.dispatchEvent(new CustomEvent('active-projects-updated', { detail: { items: nextItems } }));
+        }
         message.success('Project removed');
     };
 
@@ -443,7 +692,7 @@ const ProjectDashboard = () => {
                             {!collapsed && (
                                 <div>
                                     <Title level={4} style={{ margin: 0, fontWeight: 'normal' }}>Hi <span style={{ color: '#1890ff' }}>{greetingName}</span>!</Title>
-                                    <Text type="secondary">Project Lead</Text>
+                                    <Text type="secondary">{userRole}</Text>
                                 </div>
                             )}
                         </div>
@@ -530,7 +779,7 @@ const ProjectDashboard = () => {
                                     type="text"
                                     block
                                     icon={<SettingOutlined />}
-                                    onClick={() => navigate('/settings')}
+                                    onClick={() => navigate('/profile')}
                                     {...navButtonInteractions('settings')}
                                 >
                                     {!collapsed && "Settings"}
@@ -566,12 +815,12 @@ const ProjectDashboard = () => {
                                 title={
                                     <Space>
                                         <ProjectOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
-                                        <Text strong style={{ fontSize: '16px' }}>Active Projects (4)</Text>
+                                        <Text strong style={{ fontSize: '16px' }}>Active Projects ({activeProjects.length})</Text>
                                     </Space>
                                 }
                                 extra={
-                                    <Button type="text" icon={<PlusOutlined />} size="small" onClick={() => setProjectModalOpen(true)}>
-                                        Add Project
+                                    <Button type="text" icon={<RightOutlined />} size="small" onClick={() => navigate('/projects')}>
+                                        View Projects
                                     </Button>
                                 }
                                 style={{ height: '100%', borderRadius: '12px', boxShadow: '0 20px 60px rgba(15, 18, 21, 0.06)' }}
@@ -600,7 +849,7 @@ const ProjectDashboard = () => {
                                                             padding: '8px',
                                                             color: '#52c41a'
                                                         }}>
-                                                            {project.icon}
+                                                            {getProjectIcon(project)}
                                                         </div>
                                                     }
                                                     title={<Text strong style={{ fontSize: '14px' }}>{project.title}</Text>}
@@ -1029,73 +1278,7 @@ const ProjectDashboard = () => {
                 </Sider>
             </Layout>
 
-            <Modal
-                title="Create New Project"
-                open={isProjectModalOpen}
-                onCancel={() => {
-                    setProjectModalOpen(false);
-                    projectForm.resetFields();
-                }}
-                footer={null}
-                width={520}
-                destroyOnClose
-                bodyStyle={{ paddingTop: 0 }}
-            >
-                <div style={{ marginBottom: 16 }}>
-                    <Text type="secondary">Document the essentials so teammates can follow along.</Text>
-                </div>
-                <Form layout="vertical" form={projectForm} onFinish={handleProjectSubmit}>
-                    <Row gutter={16}>
-                        <Col span={24}>
-                            <Form.Item
-                                label="Project Title"
-                                name="title"
-                                rules={[{ required: true, message: 'Please enter a project title' }]}
-                            >
-                                <Input placeholder="e.g. Smart Attendance Platform" size="large" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={24}>
-                            <Form.Item
-                                label="Summary"
-                                name="description"
-                                rules={[{ required: true, message: 'Please enter a short description' }]}
-                            >
-                                <Input.TextArea rows={4} placeholder="What is the problem, and what outcome do you expect?" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Divider style={{ margin: '12px 0 16px' }}>Kickoff</Divider>
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item label="Priority" name="priority" initialValue="normal">
-                                <Select size="large">
-                                    <Select.Option value="low">Low</Select.Option>
-                                    <Select.Option value="normal">Normal</Select.Option>
-                                    <Select.Option value="high">High</Select.Option>
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item label="Kickoff Date" name="startDate">
-                                <DatePicker style={{ width: '100%' }} size="large" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={24}>
-                            <Form.Item label="Assigned Team" name="team">
-                                <Select size="large" placeholder="Select team members" mode="multiple" allowClear>
-                                    <Select.Option value="alice">Alice</Select.Option>
-                                    <Select.Option value="ben">Ben</Select.Option>
-                                    <Select.Option value="carla">Carla</Select.Option>
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Button type="primary" htmlType="submit" block size="large">
-                        Create Project
-                    </Button>
-                </Form>
-            </Modal>
+
 
             <Modal
                 title="Schedule Timeline Event"

@@ -48,7 +48,11 @@ class Department(Base):
         PG_UUID(as_uuid=True), ForeignKey("users.user_id", use_alter=True), nullable=True
     )
 
-    users: Mapped[list["User"]] = relationship("User", back_populates="department")
+    users: Mapped[list["User"]] = relationship(
+        "User",
+        back_populates="department",
+        foreign_keys="User.dept_id",
+    )
     subjects: Mapped[list["Subject"]] = relationship("Subject", back_populates="department")
     topics: Mapped[list["Topic"]] = relationship("Topic", back_populates="department")
     dept_head: Mapped[Optional["User"]] = relationship("User", foreign_keys=[dept_head_id])
@@ -75,7 +79,11 @@ class User(Base):
 
     # Relationships
     role: Mapped["Role"] = relationship("Role", back_populates="users")
-    department: Mapped[Optional["Department"]] = relationship("Department", back_populates="users")
+    department: Mapped[Optional["Department"]] = relationship(
+        "Department",
+        back_populates="users",
+        foreign_keys=[dept_id],
+    )
 
     system_settings: Mapped[list["SystemSetting"]] = relationship("SystemSetting", back_populates="updated_by_user")
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="actor")

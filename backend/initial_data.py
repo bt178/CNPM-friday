@@ -81,8 +81,9 @@ async def seed_roles(session: AsyncSession):
     roles_data = [
         {"role_id": 1, "role_name": "Admin"},
         {"role_id": 2, "role_name": "Staff"},
-        {"role_id": 3, "role_name": "Lecturer"},
-        {"role_id": 4, "role_name": "Student"},
+        {"role_id": 3, "role_name": "Head_Dept"},
+        {"role_id": 4, "role_name": "Lecturer"},
+        {"role_id": 5, "role_name": "Student"},
     ]
     
     roles = []
@@ -148,7 +149,7 @@ async def seed_lecturers(session: AsyncSession, departments):
             email=f"lecturer{i+1}@collabsphere.com",
             password_hash=hash_password("123"),
             full_name=fake.name(),
-            role_id=3,  # Lecturer
+            role_id=4,  # Lecturer
             dept_id=departments[i % 2].dept_id,  # Alternate between departments
             is_active=True,
             avatar_url=fake.image_url()
@@ -176,7 +177,7 @@ async def seed_students(session: AsyncSession, departments):
             email=f"student{i+1}@collabsphere.com",
             password_hash=hash_password("123"),
             full_name=fake.name(),
-            role_id=4,  # Student
+            role_id=5,  # Student
             dept_id=departments[i % 2].dept_id,  # Alternate between departments
             is_active=True,
             avatar_url=fake.image_url()

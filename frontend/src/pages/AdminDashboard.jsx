@@ -1,24 +1,84 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Layout, Typography, Button, Table, Avatar, Space, Badge,
-  Input, Row, Col, Tooltip, Modal, Form, InputNumber, Select, message, Menu, Tabs
+  Input, Row, Col, Tooltip, Modal, Form, InputNumber, Select, message, Menu, Tabs, Popover, Divider
 } from 'antd';
 import {
   SearchOutlined, UserOutlined, BookOutlined, TeamOutlined,
   EditOutlined, DeleteOutlined, PlusOutlined,
-  MenuOutlined, ArrowLeftOutlined, SettingOutlined, BellOutlined
+  MenuOutlined, ArrowLeftOutlined, SettingOutlined, BellOutlined,
+  LogoutOutlined
 } from '@ant-design/icons';
 
 // Import services
 import { subjectService, classService, userService } from '../services/api';
+import { useAuth } from '../components/AuthContext';
 
 const { Title, Text } = Typography;
 const { Header, Sider, Content } = Layout;
 
 const AdminDashboard = () => {
   const [form] = Form.useForm();
+  const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [selectedKey, setSelectedKey] = useState('1'); // 1: Môn học, 2: Học kỳ, 3: Người dùng
+
+  // Notification State
+  const [isNotificationOpen, setNotificationOpen] = useState(false);
+  const notificationAnchorRef = useRef(null);
+
+  const notifications = useMemo(() => ([
+    {
+      id: 1,
+      title: 'System Update',
+      description: 'System maintenance scheduled for 2 AM.',
+      timeAgo: '1 hour ago',
+    },
+    {
+      id: 2,
+      title: 'New User Registered',
+      description: 'User "John Doe" has set up an account.',
+      timeAgo: '2 hours ago',
+    },
+    {
+      id: 3,
+      title: 'Server Load High',
+      description: 'CPU usage exceeded 80% for 5 minutes.',
+      timeAgo: '3 hours ago',
+    },
+  ]), []);
+
+  const notificationContent = (
+    <div style={{ width: 320 }}>
+      <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Notifications</div>
+      <Divider style={{ margin: '0 0 12px' }} />
+      <div>
+        {notifications.map((item, index) => (
+          <div key={item.id} style={{ padding: '8px 0' }}>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <Avatar shape="square" size={36} style={{ backgroundColor: '#f0f0f0', color: '#8c8c8c' }}>
+                <BellOutlined />
+              </Avatar>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <Text strong style={{ display: 'block' }}>{item.title}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{item.description}</Text>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 11 }}>{item.timeAgo}</Text>
+                </div>
+              </div>
+            </div>
+            {index !== notifications.length - 1 && <Divider style={{ margin: '12px 0' }} />}
+          </div>
+        ))}
+      </div>
+      <Divider style={{ margin: '8px 0 12px' }} />
+      <Button type="link" block onClick={() => setNotificationOpen(false)}>
+        View all Notifications
+      </Button>
+    </div>
+  );
 
   // Trạng thái dữ liệu
   const [data, setData] = useState([]);
@@ -200,11 +260,29 @@ const AdminDashboard = () => {
         <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <Title level={4} style={{ margin: 0 }}>CollabSphere Admin System</Title>
           <Space size="large">
-            <Badge count={5}><BellOutlined style={{ fontSize: 18 }} /></Badge>
+            <div ref={notificationAnchorRef} style={{ display: 'inline-flex' }}>
+              <Popover
+                content={notificationContent}
+                trigger="click"
+                placement="bottomRight"
+                open={isNotificationOpen}
+                onOpenChange={setNotificationOpen}
+                overlayStyle={{ padding: 0 }}
+                arrowPointAtCenter
+                getPopupContainer={() => notificationAnchorRef.current || document.body}
+              >
+                <Badge dot offset={[-5, 5]}>
+                  <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} />
+                </Badge>
+              </Popover>
+            </div>
             <Space>
               <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
               <Text strong>Administrator</Text>
             </Space>
+            <Button icon={<LogoutOutlined />} onClick={logout}>
+              Sign out
+            </Button>
           </Space>
         </Header>
 

@@ -3,40 +3,85 @@ import { useNavigate } from 'react-router-dom';
 import { Layout, Row, Col, Typography, Button, Card, Avatar, Form, Input, Divider, message, Modal, Space, Tag } from 'antd';
 import { ArrowLeftOutlined, EditOutlined, UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 
+import { useAuth, resolveRoleName } from '../components/AuthContext';
+
 const { Title, Text } = Typography;
 
 const UserProfile = () => {
   const navigate = useNavigate();
+  const { user, updateUser } = useAuth();
   const fileInputRef = useRef(null);
   const [formProfile] = Form.useForm();
   const [formPassword] = Form.useForm();
 
-  // Khởi tạo state từ Local Storage
+  const canUseStorage = () => typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+  const buildScopedKey = (baseKey, userInfo) => {
+    const identifier = userInfo?.user_id || userInfo?.email || userInfo?.id;
+    return identifier ? `${baseKey}_${identifier}` : null;
+  };
+
+  // Determine Role for display function
+  const getDisplayRole = (u) => {
+    const r = resolveRoleName(u);
+    if (!r) return 'Student';
+    // Convert ADMIN -> Admin, STAFF -> Staff etc.
+    return r.charAt(0).toUpperCase() + r.slice(1).toLowerCase();
+  };
+
+  // Khởi tạo state từ User Context hoặc Local Storage
   const [userData, setUserData] = useState(() => {
-    const savedData = localStorage.getItem('user_profile');
-    return savedData ? JSON.parse(savedData) : {
-      name: 'Tong duc huy',
-      email: 'Test@gmail.com',
-      phone: '0495558839',
-      role: 'Student' //vai trò mặc định 
+    // Priority: Context User -> Local Storage -> Default
+    const roleName = getDisplayRole(user);
+    return {
+      name: user?.full_name || 'Tong duc huy',
+      email: user?.email || 'Test@gmail.com',
+      phone: user?.phone_number || '0495558839',
+      role: roleName
     };
   });
 
-  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('user_avatar') || null);
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    return user?.avatar_url || localStorage.getItem('user_avatar') || null;
+  });
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const roles = [
     { name: 'Admin', dotColor: '#f5222d' },
     { name: 'Staff', dotColor: '#faad14' },
     { name: 'Lecturer', dotColor: '#1890ff' },
-    { name: 'Student', dotColor: '#52c41a' }
+    { name: 'Student', dotColor: '#52c41a' },
+    // Add Head_Dept mapping if needed, usually maps to Admin or Staff color? Let's assume Admin color for now or add new.
+    { name: 'Head_dept', dotColor: '#722ed1' }
   ];
 
-  const currentRole = roles.find(r => r.name === (userData.role || 'Student')) || roles.find(r => r.name === 'Student');
+  // Update logic to find role case-insensitively
+  const currentRole = roles.find(r => r.name.toLowerCase() === (userData.role || 'student').toLowerCase()) || roles.find(r => r.name === 'Student');
 
-  // Lưu dữ liệu mỗi khi userData thay đổi
+  // Sync with user context if it updates (e.g. on refresh/re-login)
   useEffect(() => {
-    localStorage.setItem('user_profile', JSON.stringify(userData));
+    if (user) {
+      setUserData(prev => ({
+        ...prev,
+        name: user.full_name || prev.name,
+        email: user.email || prev.email,
+        role: getDisplayRole(user)
+      }));
+    }
+  }, [user]);
+
+  // Lưu dữ liệu mỗi khi userData thay đổi (Optional: keep local sync for edits)
+  useEffect(() => {
+    if (!canUseStorage()) {
+      return;
+    }
+    const payload = { ...userData, _owner: user?.email || null };
+    const profileKey = buildScopedKey('user_profile', user);
+    if (profileKey) {
+      localStorage.setItem(profileKey, JSON.stringify(payload));
+    }
+    localStorage.setItem('user_profile', JSON.stringify(payload));
+    window.dispatchEvent(new CustomEvent('profile-updated', { detail: { profile: payload } }));
   }, [userData]);
 
   const handleFileChange = (event) => {
@@ -49,7 +94,15 @@ const UserProfile = () => {
       reader.onloadend = () => {
         const base64String = reader.result;
         setAvatarUrl(base64String);
-        localStorage.setItem('user_avatar', base64String);
+        if (canUseStorage()) {
+          const avatarKey = buildScopedKey('user_avatar', user);
+          if (avatarKey) {
+            localStorage.setItem(avatarKey, base64String);
+          }
+          localStorage.setItem('user_avatar', base64String);
+          window.dispatchEvent(new CustomEvent('avatar-updated', { detail: { avatarUrl: base64String } }));
+        }
+        updateUser({ avatar_url: base64String });
         message.success('Đã cập nhật ảnh đại diện mới!');
       };
       reader.readAsDataURL(file);
@@ -58,6 +111,10 @@ const UserProfile = () => {
 
   const onUpdateProfile = (values) => {
     setUserData(prev => ({ ...prev, ...values }));
+    updateUser({
+      full_name: values.name || user?.full_name,
+      email: values.email || user?.email,
+    });
     message.success('Cập nhật thông tin thành công!');
     setIsEditModalOpen(false);
   };

@@ -73,7 +73,7 @@ const readStoredAvatar = (storageKey, fallback) => {
 
 const SettingsPage = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
     const fileInputRef = useRef(null);
     const [formProfile] = Form.useForm();
     const [formPassword] = Form.useForm();
@@ -110,7 +110,10 @@ const SettingsPage = () => {
         if (!canUseStorage()) {
             return;
         }
-        window.localStorage.setItem(profileStorageKey, JSON.stringify(userData));
+        const payload = { ...userData, _owner: user?.email || null };
+        window.localStorage.setItem(profileStorageKey, JSON.stringify(payload));
+        window.localStorage.setItem(STORAGE_BASE_KEYS.profile, JSON.stringify(payload));
+        window.dispatchEvent(new CustomEvent('profile-updated', { detail: { profile: payload } }));
     }, [userData, profileStorageKey]);
 
     useEffect(() => {
@@ -119,8 +122,11 @@ const SettingsPage = () => {
         }
         if (avatarUrl) {
             window.localStorage.setItem(avatarStorageKey, avatarUrl);
+            window.localStorage.setItem(STORAGE_BASE_KEYS.avatar, avatarUrl);
+            window.dispatchEvent(new CustomEvent('avatar-updated', { detail: { avatarUrl } }));
         } else {
             window.localStorage.removeItem(avatarStorageKey);
+            window.localStorage.removeItem(STORAGE_BASE_KEYS.avatar);
         }
     }, [avatarUrl, avatarStorageKey]);
 
@@ -131,14 +137,22 @@ const SettingsPage = () => {
         }
         const reader = new FileReader();
         reader.onloadend = () => {
-            setAvatarUrl(reader.result?.toString() || null);
+            const nextAvatar = reader.result?.toString() || null;
+            setAvatarUrl(nextAvatar);
+            if (nextAvatar) {
+                updateUser({ avatar_url: nextAvatar });
+            }
             message.success('Avatar updated');
         };
         reader.readAsDataURL(file);
     };
 
     const handleUpdateProfile = (values) => {
-        setUserData(values);
+        setUserData((prev) => ({ ...prev, ...values }));
+        updateUser({
+            full_name: values.name || user?.full_name,
+            email: values.email || user?.email,
+        });
         message.success('Profile updated successfully');
         setIsEditModalOpen(false);
     };
