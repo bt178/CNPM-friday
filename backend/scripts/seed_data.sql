@@ -1,6 +1,6 @@
 -- CollabSphere Seed Data SQL
 -- Run this in Supabase SQL Editor: https://app.supabase.com/project/csvlvzkucubqlfnuuizk/sql
-
+-- pass Password123!
 -- Insert Roles
 INSERT INTO roles (role_id, role_name) VALUES
 (1, 'ADMIN'),

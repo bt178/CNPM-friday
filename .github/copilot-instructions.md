@@ -72,15 +72,24 @@ CollabSphere is a comprehensive **Project-Based Learning Management System** bui
 ```
 backend/app/
 ├── main.py              # FastAPI app instance + CORS
-├── core/config.py       # Pydantic settings from .env
-├── core/security.py     # JWT utilities (empty - implement)
+├── core/config.py       # Pydantic settings from .env (uses API_V1_STR=/api/v1)
+├── core/security.py     # JWT utilities ✅ Working
 ├── db/base.py           # SQLAlchemy DeclarativeBase
-├── db/session.py        # Database session management (empty - implement)
+├── db/session.py        # Database session management ✅ Working
 ├── models/all_models.py # Complete SQLAlchemy 2.0 models
-├── schemas/             # Pydantic request/response models (partially implemented)
-├── api/v1/              # API endpoints (auth partially implemented)
-└── services/            # Business logic (empty - implement)
+├── schemas/             # Pydantic request/response models
+└── api/v1/              # API v1 endpoints
+    ├── api.py           # Main API router with admin endpoints
+    ├── auth.py          # Authentication endpoints
+    ├── users.py         # User endpoints
+    └── deps.py          # Dependency injection & auth
 ```
+
+**✅ Architecture (Jan 28, 2026):**
+- Using `/api/v1/` versioning (kept as per team's existing code)
+- All endpoints under `api/v1/` folder
+- Admin endpoints (init-db, db-status) in `api.py`
+- Frontend connects to `VITE_API_URL=http://localhost:8000/api/v1`
 
 ## Critical Implementation Notes
 
@@ -94,17 +103,80 @@ backend/app/
   - Use asyncpg driver: `postgresql+asyncpg://...`
   - See [SUPABASE_MIGRATION.md](../SUPABASE_MIGRATION.md) for full instructions
 
+### Authentication Implementation Status ✅
+**COMPLETED COMPONENTS:**
+1. ✅ **Backend Auth Endpoints**
+   - `POST /api/v1/auth/login` - OAuth2 compatible token endpoint
+   - `POST /api/v1/auth/register` - User registration with role support
+   - `GET /api/v1/users/me` - Get current authenticated user
+
+2. ✅ **Backend Security**
+   - JWT token generation & verification in `app/core/security.py`
+   - Password hashing with PBKDF2 (MAX_BCRYPT_BYTES = 72 bytes limit)
+   - OAuth2PasswordBearer token validation in `app/api/deps.py`
+   - Database session management with async SQLAlchemy
+
+3. ✅ **Frontend Auth Integration**
+   - `AuthContext.jsx` - Complete auth state management with session persistence
+   - `LoginPage.jsx` - Form with email/password inputs
+   - `RegisterPage.jsx` - Registration form with role selection
+   - Role-based dashboard routing (admin vs student)
+   - Idle session timeout with 5-minute auto-logout
+
+4. ✅ **Environment Configuration**
+   - Frontend `.env` with `VITE_API_URL=http://localhost:8000/api/v1`
+   - Backend `.env` with Supabase PostgreSQL connection
+   - Docker-compose overrides DB with local PostgreSQL for local dev
+
 ### API Development
 - Start with **auth endpoints** (login, register, token refresh)
 - Use **dependency injection** for current user (`deps.py`)
 - **Role checking** in endpoints (e.g., lecturers only for class management)
 - **Pagination** for list endpoints (teams, tasks, messages)
 
+### Login/Registration Flow (Working)
+1. User enters email + password on LoginPage
+2. FE sends POST to `/api/v1/auth/login` with OAuth2 URLencoded form
+3. BE validates credentials, returns JWT access_token
+4. FE stores token in localStorage and calls `/api/v1/users/me`
+5. FE stores user profile and navigates to appropriate dashboard
+6. All subsequent requests include `Authorization: Bearer {token}` header
+
+### Register Flow (Working)
+1. User fills email, password, role, full_name on RegisterPage
+2. FE sends POST to `/api/v1/auth/register` with JSON body
+3. BE validates email uniqueness, hashes password, creates user
+4. FE navigates to LoginPage for user to sign in
+
 ### Frontend Integration
 - **API base URL** from `VITE_API_URL` environment variable
 - **Auth tokens** in localStorage with axios interceptors
 - **Real-time updates** via Socket.IO for chat and notifications
 - **Role-based UI** rendering (different views for students vs lecturers)
+
+### Recent Fixes (January 28, 2026)
+**✅ HOÀN THÀNH - V1 Architecture + Registration/Login Working:**
+1. ✅ **Reverted to V1 Architecture**
+   - Using `/api/v1/` versioning (as per team's existing code structure)
+   - `API_V1_STR = "/api/v1"` in config.py
+   - All auth code in `app/api/v1/` folder
+   - Frontend `.env` uses `VITE_API_URL=http://localhost:8000/api/v1`
+
+2. ✅ **Admin Endpoints in V1**
+   - `POST /api/v1/admin/init-db` creates tables and seeds 5 roles
+   - `GET /api/v1/admin/db-status` checks database health
+   - Integrated into `app/api/v1/api.py` main router
+
+3. ✅ **Registration & Login Working**
+   - `POST /api/v1/auth/register` - Create user with role_id
+   - `POST /api/v1/auth/login` - OAuth2 token endpoint
+   - `GET /api/v1/users/me` - Get authenticated user profile
+
+**Cách sử dụng:**
+- **Init Database**: `POST http://localhost:8000/api/v1/admin/init-db`
+- **Register**: `POST http://localhost:8000/api/v1/auth/register` với role_id 1-5
+- **Login**: `POST http://localhost:8000/api/v1/auth/login` (form data)
+- **Frontend**: Tự động kết nối đến `http://localhost:8000/api/v1`
 
 ### AI Features
 - **Google Gemini API** for mentoring suggestions in `MentoringLog.ai_suggestions`
@@ -116,6 +188,26 @@ backend/app/
 - **Container health checks** ensure service dependencies
 - **Volume mounts** for hot reload during development
 - **Production secrets** via environment variables (no hardcoded keys)
+- **Test Auth Flow**: 
+  ```bash
+  # 1. Start services
+  docker-compose up
+  
+  # 2. Register new user (POST http://localhost:8000/api/v1/auth/register)
+  {
+    "email": "student@example.com",
+    "password": "password123",
+    "role_id": 5,
+    "full_name": "Test Student"
+  }
+  
+  # 3. Login (POST http://localhost:8000/api/v1/auth/login)
+  # Send as form data: username=student@example.com&password=password123&grant_type=password
+  # Returns: {"access_token": "...", "token_type": "bearer"}
+  
+  # 4. Get user profile (GET http://localhost:8000/api/v1/users/me)
+  # Add header: Authorization: Bearer <access_token>
+  ```
 
 ## Common Tasks
 - **User registration**: Create user with role, department, generate UUID

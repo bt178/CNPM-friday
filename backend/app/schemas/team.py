@@ -15,9 +15,9 @@ class TeamBase(BaseModel):
 
 class TeamCreate(TeamBase):
     """Schema for creating a Team."""
-    team_name: str
-    class_id: int
-    project_id: Optional[int] = None
+    name: str
+    project_id: int
+    description: Optional[str] = None
 
 
 class TeamJoinByCode(BaseModel):

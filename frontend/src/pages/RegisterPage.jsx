@@ -19,7 +19,7 @@ const RegisterPage = () => {
         const payload = {
             email: values.email,
             password: values.password,
-            role_id: values.role_id,
+            role_id: parseInt(values.role_id, 10),  // Convert string to int
             full_name: values.full_name || null,
         };
         await register(payload);

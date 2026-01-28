@@ -7,6 +7,9 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
+# Maximum password length for bcrypt compatibility (72 bytes)
+MAX_BCRYPT_BYTES = 72
+
 try:  # pragma: no cover - defensive patch for bcrypt>=4.1
     import bcrypt  # type: ignore
     from types import SimpleNamespace

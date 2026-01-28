@@ -12,6 +12,7 @@ class TaskStatus(str, Enum):
     TODO = "TODO"
     DOING = "DOING"
     DONE = "DONE"
+    BLOCKED = "BLOCKED"
 
 
 class TaskPriority(str, Enum):
@@ -27,7 +28,25 @@ class TaskBase(BaseModel):
     """Base schema for Task."""
     title: Optional[str] = None
     description: Optional[str] = None
-    priority: Optional[TaskPriority] = TaskPriority.MEDIUM
+    priority: Optional[str] = "MEDIUM"
+
+
+class TaskCreate(TaskBase):
+    """Schema for creating a Task."""
+    title: str
+    sprint_id: int
+    description: Optional[str] = None
+    assigned_to: Optional[str] = None
+    priority: str = "MEDIUM"
+
+
+class TaskUpdate(BaseModel):
+    """Schema for updating a Task."""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    assigned_to: Optional[str] = None
+    priority: Optional[str] = None
 
 
 class TaskCreate(TaskBase):

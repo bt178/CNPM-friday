@@ -2,16 +2,22 @@ import axios from 'axios';
 import { mockSubjects, mockClasses, mockUsers, mockProjects } from './mockData';
 
 // 1. Định nghĩa Base URL
+// For local development with Docker: http://localhost:8000/api/v1
+// This is the ONLY URL that works from browser running on your machine
 const BASE_URL = 'http://localhost:8000/api/v1';
 
 const api = axios.create({
   baseURL: BASE_URL,
 });
 
+// Debug: Log BASE_URL để kiểm tra
+console.log('[API] Initialized with baseURL:', BASE_URL);
+
 // 2. Thêm token vào header 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  console.log('[API] Request:', config.method?.toUpperCase(), config.baseURL + config.url);
   return config;
 });
 
