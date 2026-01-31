@@ -78,6 +78,7 @@ async def create_team(
         join_code=join_code,
         is_finalized=False,
         created_by=current_user.user_id,
+        leader_id=current_user.user_id,
         created_at=datetime.now(timezone.utc),
     )
     

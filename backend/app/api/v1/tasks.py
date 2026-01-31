@@ -5,7 +5,7 @@ Created: 2026-01-28
 
 Description:
 - Create/manage tasks in sprints
-- Status transitions: TODO → DOING → DONE
+- Status transitions: TODO → DOING → REVIEW → DONE
 - Assign tasks to team members
 - Simple priority levels (LOW, MEDIUM, HIGH)
 """
@@ -185,6 +185,8 @@ async def create_task(
         assigned_to=task.assigned_to,
         created_by=current_user.user_id,
         created_at=datetime.now(timezone.utc),
+        blocked_reason=task.blocked_reason,
+        depends_on=task.depends_on,
     )
     
     db.add(new_task)
@@ -208,7 +210,9 @@ async def create_task(
         "priority": new_task.priority,
         "assigned_to": assigned_name,
         "created_by": current_user.full_name,
-        "created_at": new_task.created_at
+        "created_at": new_task.created_at,
+        "blocked_reason": new_task.blocked_reason,
+        "depends_on": new_task.depends_on
     }
 
 
@@ -352,7 +356,9 @@ async def get_task_detail(
         "assigned_to": assigned_name,
         "created_by": creator.full_name if creator else "Unknown",
         "created_at": task.created_at,
-        "updated_at": task.updated_at
+        "updated_at": task.updated_at,
+        "blocked_reason": task.blocked_reason,
+        "depends_on": task.depends_on
     }
 
 
@@ -420,6 +426,12 @@ async def update_task(
     if task_update.assigned_to is not None:
         task.assigned_to = task_update.assigned_to
     
+    if task_update.blocked_reason is not None:
+        task.blocked_reason = task_update.blocked_reason
+        
+    if task_update.depends_on is not None:
+        task.depends_on = task_update.depends_on
+    
     # Update timestamp
     task.updated_at = datetime.now(timezone.utc)
     
@@ -443,7 +455,9 @@ async def update_task(
         "status": task.status,
         "priority": task.priority,
         "assigned_to": assigned_name,
-        "updated_at": task.updated_at
+        "updated_at": task.updated_at,
+        "blocked_reason": task.blocked_reason,
+        "depends_on": task.depends_on
     }
 
 
@@ -482,3 +496,270 @@ async def delete_task(
         "task_id": task_id,
         "message": "Task deleted successfully"
     }
+
+
+# ============================================================================
+# STATUS TRANSITION VALIDATION
+# ============================================================================
+
+# Valid status transitions map
+# Valid status transitions map
+# Key = current status, Value = list of allowed next statuses
+STATUS_TRANSITIONS = {
+    "TODO": ["DOING"],
+    "DOING": ["REVIEW", "TODO"],
+    "REVIEW": ["DONE", "DOING"],
+    "DONE": ["REVIEW"], # Allow moving back to REVIEW if needed, or keep terminal
+}
+
+def validate_status_transition(current_status: str, new_status: str) -> bool:
+    """Check if status transition is valid."""
+    current = current_status.upper()
+    new = new_status.upper()
+    
+    if current not in STATUS_TRANSITIONS:
+        return False
+    
+    allowed = STATUS_TRANSITIONS.get(current, [])
+    return new in allowed
+
+
+# ============================================================================
+# NEW ENDPOINTS: Sprint Tasks, Status Change, Assignment
+# ============================================================================
+
+@router.get("/sprints/{sprint_id}/tasks")
+async def get_sprint_tasks(
+    sprint_id: int,
+    status_filter: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all tasks in a sprint with optional status filter.
+    
+    Query params:
+        ?status_filter=DOING
+    
+    Response:
+        {
+            "sprint_id": 1,
+            "tasks": [...],
+            "total": 5
+        }
+    """
+    # Verify sprint exists
+    sprint_query = select(Sprint).where(Sprint.sprint_id == sprint_id)
+    sprint_result = await db.execute(sprint_query)
+    sprint = sprint_result.scalar()
+    
+    if not sprint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sprint not found"
+        )
+    
+    # Build query
+    query = select(Task).where(Task.sprint_id == sprint_id)
+    
+    if status_filter:
+        query = query.where(Task.status == status_filter.upper())
+    
+    result = await db.execute(query)
+    tasks = result.scalars().all()
+    
+    tasks_response = []
+    for t in tasks:
+        # Get assigned user name
+        assigned_name = None
+        if t.assigned_to:
+            user_query = select(User).where(User.user_id == t.assigned_to)
+            user_result = await db.execute(user_query)
+            assigned_user = user_result.scalar()
+            assigned_name = assigned_user.full_name if assigned_user else None
+        
+        tasks_response.append({
+            "task_id": t.task_id,
+            "title": t.title,
+            "status": t.status,
+            "priority": t.priority,
+            "assigned_to": assigned_name,
+            "created_at": t.created_at
+        })
+    
+    return {
+        "sprint_id": sprint_id,
+        "tasks": tasks_response,
+        "total": len(tasks_response)
+    }
+
+
+@router.patch("/{task_id}/status", status_code=200)
+async def change_task_status(
+    task_id: int,
+    new_status: str,
+    blocked_reason: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Change task status with validation.
+    
+    Valid transitions:
+        TODO → DOING
+        DOING → REVIEW | TODO
+        REVIEW → DONE | DOING
+        DONE → REVIEW
+    
+    Request:
+        ?new_status=DOING&blocked_reason=Waiting%20for%20API
+    
+    Response:
+        {
+            "task_id": 1,
+            "old_status": "TODO",
+            "new_status": "DOING",
+            "updated_at": "..."
+        }
+    """
+    # Get task
+    query = select(Task).where(Task.task_id == task_id)
+    result = await db.execute(query)
+    task = result.scalar()
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found"
+        )
+    
+    old_status = task.status or "TODO"
+    new_status_upper = new_status.upper()
+    
+    # Validate transition
+    if not validate_status_transition(old_status, new_status_upper):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid status transition: {old_status} → {new_status_upper}"
+        )
+    
+    
+    # If moving to DONE, check dependencies
+    if new_status_upper == "DONE" and task.depends_on:
+        dep_query = select(Task).where(Task.task_id == task.depends_on)
+        dep_result = await db.execute(dep_query)
+        dep_task = dep_result.scalar()
+        if dep_task and dep_task.status != "DONE":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot complete task. Dependency task {task.depends_on} is not DONE."
+            )
+
+    # Update
+    task.status = new_status_upper
+    task.updated_at = datetime.now(timezone.utc)
+    if blocked_reason is not None:
+        task.blocked_reason = blocked_reason
+    
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+    
+    return {
+        "task_id": task.task_id,
+        "old_status": old_status,
+        "new_status": task.status,
+        "updated_at": task.updated_at
+    }
+
+
+from app.models.all_models import TeamMember, Team
+from uuid import UUID as PyUUID
+
+@router.patch("/{task_id}/assign", status_code=200)
+async def assign_task(
+    task_id: int,
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Assign task to a team member.
+    Validates that the user is a member of the team that owns the sprint.
+    
+    Request:
+        ?user_id=<uuid>
+    
+    Response:
+        {
+            "task_id": 1,
+            "assigned_to": "John Doe",
+            "updated_at": "..."
+        }
+    """
+    # Get task
+    query = select(Task).where(Task.task_id == task_id)
+    result = await db.execute(query)
+    task = result.scalar()
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found"
+        )
+    
+    # Get sprint to find team_id
+    sprint_query = select(Sprint).where(Sprint.sprint_id == task.sprint_id)
+    sprint_result = await db.execute(sprint_query)
+    sprint = sprint_result.scalar()
+    
+    if not sprint:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task is not associated with a sprint"
+        )
+    
+    # Convert user_id string to UUID
+    try:
+        target_user_id = PyUUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user_id format"
+        )
+    
+    # Check if user is a team member
+    member_query = select(TeamMember).where(
+        and_(
+            TeamMember.team_id == sprint.team_id,
+            TeamMember.user_id == target_user_id
+        )
+    )
+    member_result = await db.execute(member_query)
+    member = member_result.scalar()
+    
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not a member of the team"
+        )
+    
+    # Assign
+    task.assigned_to = target_user_id
+    task.updated_at = datetime.now(timezone.utc)
+    
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+    
+    # Get assigned user name
+    user_query = select(User).where(User.user_id == target_user_id)
+    user_result = await db.execute(user_query)
+    assigned_user = user_result.scalar()
+    
+    return {
+        "task_id": task.task_id,
+        "assigned_to": assigned_user.full_name if assigned_user else str(target_user_id),
+        "updated_at": task.updated_at
+    }
+

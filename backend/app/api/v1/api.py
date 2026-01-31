@@ -20,6 +20,10 @@ api_router.include_router(auth_router, prefix="/auth", tags=["authentication"])
 from app.api.v1 import users
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 
+# Academic Classes
+from app.api.v1.academic_classes import router as ac_router
+api_router.include_router(ac_router, prefix="/academic-classes", tags=["academic-classes"])
+
 # Topics & Evaluation
 from app.api.v1.topics import router as topics_router
 api_router.include_router(topics_router, prefix="/topics", tags=["topics"])
@@ -27,6 +31,10 @@ api_router.include_router(topics_router, prefix="/topics", tags=["topics"])
 # Teams
 from app.api.v1.teams import router as teams_router
 api_router.include_router(teams_router, prefix="/teams", tags=["teams"])
+
+# Projects
+from app.api.v1.projects import router as projects_router
+api_router.include_router(projects_router, prefix="/projects", tags=["projects"])
 
 # Tasks & Sprints
 from app.api.v1.tasks import router as tasks_router

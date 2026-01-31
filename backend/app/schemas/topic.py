@@ -14,6 +14,19 @@ class TopicUpdate(BaseModel):
     description: Optional[str] = None
     requirements: Optional[str] = None
 
+class TopicResponse(BaseModel):
+    topic_id: int
+    title: str
+    description: Optional[str]
+    status: str
+    created_by: str
+    created_at: Optional[datetime]
+    approved_by: Optional[str]
+    approved_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
 class EvaluationCreate(BaseModel):
     team_id: int
     project_id: int

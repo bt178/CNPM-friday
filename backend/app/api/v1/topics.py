@@ -70,6 +70,7 @@ async def create_topic(
         description=topic.description,
         requirements=topic.requirements,
         status="DRAFT",
+        creator_id=current_user.user_id,
         created_by=current_user.user_id,
         created_at=datetime.now(timezone.utc),
     )
@@ -143,7 +144,9 @@ async def get_topics(
             "title": t.title,
             "description": t.description,
             "status": t.status,
+            "status": t.status,
             "created_by": creator.full_name if creator else "Unknown",
+            "creator_id": t.creator_id,
             "created_at": t.created_at
         })
     
