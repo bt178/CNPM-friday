@@ -17,12 +17,12 @@ class TopicUpdate(BaseModel):
 class TopicResponse(BaseModel):
     topic_id: int
     title: str
-    description: Optional[str] = None
-    status: Optional[str] = None
-    created_by: Optional[str] = None
-    created_at: Optional[datetime] = None
-    approved_by: Optional[str] = None
-    approved_at: Optional[datetime] = None
+    description: Optional[str]
+    status: str
+    created_by: str
+    created_at: Optional[datetime]
+    approved_by: Optional[str]
+    approved_at: Optional[datetime]
 
     class Config:
         from_attributes = True

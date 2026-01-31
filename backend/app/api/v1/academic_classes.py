@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.db import get_db
+from app.db.session import get_db
 from app.models.all_models import AcademicClass
 from app.schemas.academic_classes import AcademicClassCreate, AcademicClassUpdate, AcademicClassResponse
 from typing import List

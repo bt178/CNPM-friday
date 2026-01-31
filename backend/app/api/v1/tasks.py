@@ -5,7 +5,7 @@ Created: 2026-01-28
 
 Description:
 - Create/manage tasks in sprints
-- Status transitions: TODO → DOING → DONE
+- Status transitions: TODO → DOING → REVIEW → DONE
 - Assign tasks to team members
 - Simple priority levels (LOW, MEDIUM, HIGH)
 """
@@ -503,19 +503,17 @@ async def delete_task(
 # ============================================================================
 
 # Valid status transitions map
+# Valid status transitions map
 # Key = current status, Value = list of allowed next statuses
 STATUS_TRANSITIONS = {
-    "TODO": ["DOING", "IN_PROGRESS"],
-    "DOING": ["REVIEW", "BLOCKED", "TODO"],
-    "IN_PROGRESS": ["REVIEW", "BLOCKED", "TODO"],  # Alias for DOING
-    "REVIEW": ["DONE", "DOING", "IN_PROGRESS"],
-    "BLOCKED": ["TODO", "DOING", "IN_PROGRESS"],
-    "DONE": [],  # Terminal state
+    "TODO": ["DOING"],
+    "DOING": ["REVIEW", "TODO"],
+    "REVIEW": ["DONE", "DOING"],
+    "DONE": ["REVIEW"], # Allow moving back to REVIEW if needed, or keep terminal
 }
 
 def validate_status_transition(current_status: str, new_status: str) -> bool:
     """Check if status transition is valid."""
-    # Normalize DOING/IN_PROGRESS as equivalent
     current = current_status.upper()
     new = new_status.upper()
     
@@ -608,11 +606,10 @@ async def change_task_status(
     Change task status with validation.
     
     Valid transitions:
-        TODO → DOING/IN_PROGRESS
-        DOING/IN_PROGRESS → REVIEW | BLOCKED
+        TODO → DOING
+        DOING → REVIEW | TODO
         REVIEW → DONE | DOING
-        BLOCKED → TODO | DOING
-        DONE → (terminal)
+        DONE → REVIEW
     
     Request:
         ?new_status=DOING&blocked_reason=Waiting%20for%20API
@@ -646,12 +643,6 @@ async def change_task_status(
             detail=f"Invalid status transition: {old_status} → {new_status_upper}"
         )
     
-    # If blocking, require reason
-    if new_status_upper == "BLOCKED" and not blocked_reason:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="blocked_reason is required when setting status to BLOCKED"
-        )
     
     # If moving to DONE, check dependencies
     if new_status_upper == "DONE" and task.depends_on:

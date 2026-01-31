@@ -11,8 +11,8 @@ class TaskStatus(str, Enum):
     """Task status enum."""
     TODO = "TODO"
     DOING = "DOING"
+    REVIEW = "REVIEW"
     DONE = "DONE"
-    BLOCKED = "BLOCKED"
 
 
 class TaskPriority(str, Enum):
