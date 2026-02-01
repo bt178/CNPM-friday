@@ -4,6 +4,8 @@ import ProjectListView from './pages/ProjectListView';
 import UserProfile from './pages/UserProfile';
 import AdminDashboard from './pages/AdminDashboard';
 import DashboardPage from './pages/DashboardPage';
+import LecturerDashboard from './pages/LecturerDashboard';
+import TopicManagement from './pages/TopicManagement';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { useAuth, getDefaultDashboardPath, resolveRoleName } from './components/AuthContext';
@@ -71,6 +73,8 @@ const App = () => (
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
     <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
     <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+    <Route path="/lecturer" element={<ProtectedRoute allowedRoles={['LECTURER']}><LecturerDashboard /></ProtectedRoute>} />
+    <Route path="/topics" element={<ProtectedRoute><TopicManagement /></ProtectedRoute>} />
     <Route path="/projects" element={<ProtectedRoute><ProjectListView /></ProtectedRoute>} />
     <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
     <Route path="/admin" element={<ProtectedRoute allowedRoles={adminRoleGate}><AdminDashboard /></ProtectedRoute>} />
