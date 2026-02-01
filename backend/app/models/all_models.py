@@ -242,6 +242,10 @@ class Project(Base):
     class_id: Mapped[int] = mapped_column(Integer, ForeignKey("academic_classes.class_id"))
     project_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    claimed_by_id: Mapped[Optional[UUID]] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    claimed_by: Mapped[Optional["User"]] = relationship("User", foreign_keys=[claimed_by_id])
 
     topic: Mapped["Topic"] = relationship("Topic", back_populates="projects")
     academic_class: Mapped["AcademicClass"] = relationship("AcademicClass", back_populates="projects")

@@ -79,6 +79,8 @@ class ProjectResponse(ProjectBase):
     topic_id: int
     class_id: int
     status: Optional[str] = None
+    claimed_by_id: Optional[UUID] = None
+    claimed_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

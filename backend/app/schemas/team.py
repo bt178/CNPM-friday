@@ -8,6 +8,11 @@ from pydantic import BaseModel
 
 # ==================== TEAM SCHEMAS ====================
 
+class TeamProjectSelect(BaseModel):
+    """Schema for selecting a project for a team."""
+    project_id: int
+
+
 class TeamBase(BaseModel):
     """Base schema for Team."""
     team_name: Optional[str] = None

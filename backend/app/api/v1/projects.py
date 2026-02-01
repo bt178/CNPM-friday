@@ -1,6 +1,7 @@
 """
 FastAPI endpoints for Project management.
 """
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -69,6 +70,7 @@ async def create_project(
 async def list_projects(
     class_id: Optional[int] = Query(None, description="Filter by class"),
     topic_id: Optional[int] = Query(None, description="Filter by topic"),
+    claimed_by_me: bool = Query(False, description="Filter projects claimed by current user"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -83,8 +85,60 @@ async def list_projects(
     if topic_id is not None:
         query = query.where(Project.topic_id == topic_id)
     
+    if claimed_by_me:
+        query = query.where(Project.claimed_by_id == current_user.user_id)
+    elif current_user.role_id == 5: # Student listing available projects
+        query = query.where(Project.claimed_by_id == None)
+    
     result = await db.execute(query)
     return result.scalars().all()
+
+
+@router.patch("/{project_id}/claim", response_model=ProjectResponse)
+async def claim_project(
+    project_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Claim a project (Student only).
+    """
+    # Role check
+    if current_user.role_id != 5: # Student
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can claim projects"
+        )
+    
+    result = await db.execute(
+        select(Project).where(Project.project_id == project_id)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    # Check if already claimed
+    if project.claimed_by_id:
+        if project.claimed_by_id == current_user.user_id:
+            return project # Already claimed by current user
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project is already claimed by another student"
+        )
+        
+    # Claim it
+    project.claimed_by_id = current_user.user_id
+    project.claimed_at = datetime.now(timezone.utc)
+    project.status = "claimed"
+    
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return project
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
