@@ -13,6 +13,7 @@ Description:
 
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy import select, and_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from typing import Optional
@@ -83,18 +84,31 @@ async def create_team(
     )
     
     db.add(new_team)
-    await db.flush()  # ← Important! Need team_id before creating member
-    
-    # Auto-add creator as LEADER
-    team_member = TeamMember(
-        team_id=new_team.team_id,
-        user_id=current_user.user_id,
-        role="LEADER",
-        joined_at=datetime.now(timezone.utc),
-    )
-    
-    db.add(team_member)
-    await db.commit()
+    try:
+        await db.flush()  # ← Important! Need team_id before creating member
+        
+        # Auto-add creator as LEADER
+        team_member = TeamMember(
+            team_id=new_team.team_id,
+            user_id=current_user.user_id,
+            role="LEADER",
+            joined_at=datetime.now(timezone.utc),
+        )
+        
+        db.add(team_member)
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        # Check for FK violation
+        if "teams_project_id_fkey" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid project_id. Project does not exist."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Database integrity error: " + str(e)
+        )
     await db.refresh(new_team)
     
     return {

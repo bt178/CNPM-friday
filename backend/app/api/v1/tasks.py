@@ -58,11 +58,26 @@ async def create_sprint(
         }
     """
     
+    # Parse dates
+    start_date_obj = None
+    if start_date:
+        try:
+            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+
+    end_date_obj = None
+    if end_date:
+        try:
+            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+
     sprint = Sprint(
         team_id=team_id,
         name=name,
-        start_date=start_date,
-        end_date=end_date,
+        start_date=start_date_obj,
+        end_date=end_date_obj,
         created_by=current_user.user_id,
         created_at=datetime.now(timezone.utc),
     )
