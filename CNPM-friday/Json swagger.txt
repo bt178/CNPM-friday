@@ -1,0 +1,1854 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CollabSphere API",
+    "description": "Project-Based Learning Management System",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Login Access Token",
+        "description": "OAuth2 compatible token login, get an access token for future requests.",
+        "operationId": "login_access_token_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_access_token_api_v1_auth_login_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Register User",
+        "description": "Create new user.",
+        "operationId": "register_user_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "users",
+          "users"
+        ],
+        "summary": "Read Current User",
+        "description": "Return the currently authenticated user's profile.",
+        "operationId": "read_current_user_api_v1_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/topics": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Create Topic",
+        "description": "Create a new topic (Lecturer only)\n- Status: DRAFT by default\n- Only role_id 4 (Lecturer) can create\n\nRequest:\n    {\n        \"title\": \"AI Chatbot Project\",\n        \"description\": \"Build an AI-powered chatbot\",\n        \"requirements\": \"Python, NLP knowledge\"\n    }\n\nResponse:\n    {\n        \"topic_id\": 1,\n        \"title\": \"AI Chatbot Project\",\n        \"status\": \"DRAFT\",\n        \"created_by\": \"lecturer@example.com\",\n        \"created_at\": \"2026-01-28T10:00:00\"\n    }",
+        "operationId": "create_topic_api_v1_topics_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Get Topics",
+        "description": "Get topics list\n- Lecturers see all topics\n- Students see only APPROVED topics\n\nQuery params:\n    ?status=DRAFT  (filters by status)\n\nResponse:\n    {\n        \"topics\": [\n            {\n                \"topic_id\": 1,\n                \"title\": \"AI Project\",\n                \"status\": \"APPROVED\",\n                \"created_by\": \"lecturer@example.com\"\n            },\n            ...\n        ],\n        \"total\": 5\n    }",
+        "operationId": "get_topics_api_v1_topics_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status Filter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/{topic_id}": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Get Topic Detail",
+        "description": "Get topic details by ID\n\nResponse:\n    {\n        \"topic_id\": 1,\n        \"title\": \"AI Project\",\n        \"description\": \"...\",\n        \"status\": \"APPROVED\",\n        \"created_by\": \"lecturer@example.com\",\n        \"created_at\": \"2026-01-28T10:00:00\",\n        \"approved_by\": \"admin@example.com\",\n        \"approved_at\": \"2026-01-28T11:00:00\"\n    }",
+        "operationId": "get_topic_detail_api_v1_topics__topic_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/{topic_id}/approve": {
+      "patch": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Approve Topic",
+        "description": "Approve a topic (HEAD_DEPT or ADMIN only)\n- Changes status from DRAFT to APPROVED\n- Sets approved_by and approved_at\n\nResponse:\n    {\n        \"topic_id\": 1,\n        \"status\": \"APPROVED\",\n        \"approved_by\": \"admin@example.com\",\n        \"approved_at\": \"2026-01-28T11:00:00\"\n    }",
+        "operationId": "approve_topic_api_v1_topics__topic_id__approve_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/{topic_id}/reject": {
+      "patch": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Reject Topic",
+        "description": "Reject a topic (HEAD_DEPT or ADMIN only)\n- Changes status from DRAFT to REJECTED\n- Sets approved_by and approved_at\n\nResponse:\n    {\n        \"topic_id\": 1,\n        \"status\": \"REJECTED\",\n        \"rejected_by\": \"admin@example.com\",\n        \"rejected_at\": \"2026-01-28T11:00:00\"\n    }",
+        "operationId": "reject_topic_api_v1_topics__topic_id__reject_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/evaluations/{topic_id}": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Create Evaluation",
+        "description": "Create evaluation for a team on a topic (Lecturer only)\n\nRequest:\n    {\n        \"team_id\": 1,\n        \"project_id\": 5,\n        \"score\": 8.5,\n        \"feedback\": \"Great work on the project\"\n    }\n\nResponse:\n    {\n        \"evaluation_id\": 1,\n        \"team_id\": 1,\n        \"topic_id\": 1,\n        \"score\": 8.5,\n        \"feedback\": \"Great work...\",\n        \"evaluator\": \"lecturer@example.com\",\n        \"created_at\": \"2026-01-28T11:00:00\"\n    }",
+        "operationId": "create_evaluation_api_v1_topics_evaluations__topic_id__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Topic Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/evaluations": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Get Evaluations",
+        "description": "Get evaluations (filter by team_id if provided)\n\nResponse:\n    {\n        \"evaluations\": [\n            {\n                \"evaluation_id\": 1,\n                \"team_id\": 1,\n                \"topic_id\": 1,\n                \"score\": 8.5,\n                \"feedback\": \"...\"\n            },\n            ...\n        ],\n        \"total\": 3\n    }",
+        "operationId": "get_evaluations_api_v1_topics_evaluations_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams": {
+      "post": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Create Team",
+        "description": "Create a new team (Student only)\n- Auto-generates join_code (6 hex chars = 3 bytes)\n- Creator becomes LEADER\n- Team not finalized (can still join)\n\nRequest:\n    {\n        \"name\": \"Team A\",\n        \"project_id\": 1,\n        \"description\": \"Web development team\"\n    }\n\nResponse:\n    {\n        \"team_id\": 1,\n        \"name\": \"Team A\",\n        \"project_id\": 1,\n        \"join_code\": \"A1B2C3\",\n        \"is_finalized\": false,\n        \"created_by\": \"student@example.com\",\n        \"member_count\": 1\n    }",
+        "operationId": "create_team_api_v1_teams_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Get Teams",
+        "description": "Get all teams (optionally filter by project_id)\n\nQuery params:\n    ?project_id=1  (filters by project)\n\nResponse:\n    {\n        \"teams\": [\n            {\n                \"team_id\": 1,\n                \"name\": \"Team A\",\n                \"project_id\": 1,\n                \"member_count\": 3,\n                \"is_finalized\": false,\n                \"created_by\": \"student@example.com\"\n            },\n            ...\n        ],\n        \"total\": 5\n    }",
+        "operationId": "get_teams_api_v1_teams_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Get Team Detail",
+        "description": "Get team details including members list\n\nResponse:\n    {\n        \"team_id\": 1,\n        \"name\": \"Team A\",\n        \"project_id\": 1,\n        \"description\": \"...\",\n        \"join_code\": \"A1B2C3\",\n        \"is_finalized\": false,\n        \"created_by\": \"student@example.com\",\n        \"created_at\": \"2026-01-28T10:00:00\",\n        \"members\": [\n            {\n                \"user_id\": \"uuid-1\",\n                \"full_name\": \"John Doe\",\n                \"role\": \"LEADER\",\n                \"joined_at\": \"2026-01-28T10:00:00\"\n            },\n            {\n                \"user_id\": \"uuid-2\",\n                \"full_name\": \"Jane Smith\",\n                \"role\": \"MEMBER\",\n                \"joined_at\": \"2026-01-28T10:30:00\"\n            }\n        ]\n    }",
+        "operationId": "get_team_detail_api_v1_teams__team_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}/join": {
+      "post": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Join Team",
+        "description": "Join a team using join_code\n- Validates join_code matches\n- Validates team not finalized\n- Adds user as MEMBER\n\nRequest:\n    {\n        \"join_code\": \"A1B2C3\"\n    }\n\nResponse:\n    {\n        \"team_id\": 1,\n        \"message\": \"Successfully joined team\",\n        \"role\": \"MEMBER\",\n        \"joined_at\": \"2026-01-28T10:30:00\"\n    }",
+        "operationId": "join_team_api_v1_teams__team_id__join_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "join_code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Join Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}/leave": {
+      "post": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Leave Team",
+        "description": "Leave a team (remove yourself as member)\n\nResponse:\n    {\n        \"team_id\": 1,\n        \"message\": \"Successfully left team\"\n    }",
+        "operationId": "leave_team_api_v1_teams__team_id__leave_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}/finalize": {
+      "patch": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Finalize Team",
+        "description": "Finalize team (lock it - no more members can join)\n- Only Lecturer/Admin can finalize\n- Removes join_code\n\nResponse:\n    {\n        \"team_id\": 1,\n        \"message\": \"Team finalized\",\n        \"is_finalized\": true\n    }",
+        "operationId": "finalize_team_api_v1_teams__team_id__finalize_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/sprints": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Create Sprint",
+        "description": "Create a sprint for a team\n\nRequest Query/Body:\n    {\n        \"team_id\": 1,\n        \"name\": \"Sprint 1 - Setup\",\n        \"start_date\": \"2026-01-28\",\n        \"end_date\": \"2026-02-04\"\n    }\n\nResponse:\n    {\n        \"sprint_id\": 1,\n        \"team_id\": 1,\n        \"name\": \"Sprint 1\",\n        \"start_date\": \"2026-01-28\",\n        \"end_date\": \"2026-02-04\",\n        \"created_at\": \"2026-01-28T10:00:00\"\n    }",
+        "operationId": "create_sprint_api_v1_tasks_sprints_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Date"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Date"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/sprints/{sprint_id}": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Get Sprint Detail",
+        "description": "Get sprint details with task counts by status\n\nResponse:\n    {\n        \"sprint_id\": 1,\n        \"team_id\": 1,\n        \"name\": \"Sprint 1\",\n        \"start_date\": \"2026-01-28\",\n        \"end_date\": \"2026-02-04\",\n        \"task_counts\": {\n            \"TODO\": 5,\n            \"DOING\": 2,\n            \"DONE\": 3,\n            \"BLOCKED\": 1\n        },\n        \"created_at\": \"2026-01-28T10:00:00\"\n    }",
+        "operationId": "get_sprint_detail_api_v1_tasks_sprints__sprint_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sprint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sprint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Create Task",
+        "description": "Create a new task in a sprint\n\nRequest:\n    {\n        \"title\": \"Setup project structure\",\n        \"sprint_id\": 1,\n        \"description\": \"Create folders and initial files\",\n        \"assigned_to\": \"student-uuid-1\",\n        \"priority\": \"HIGH\"\n    }\n\nResponse:\n    {\n        \"task_id\": 1,\n        \"title\": \"Setup project structure\",\n        \"sprint_id\": 1,\n        \"status\": \"TODO\",\n        \"priority\": \"HIGH\",\n        \"assigned_to\": \"student-uuid-1\",\n        \"created_by\": \"student@example.com\",\n        \"created_at\": \"2026-01-28T10:00:00\"\n    }",
+        "operationId": "create_task_api_v1_tasks_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Get Tasks",
+        "description": "Get all tasks (optionally filter by sprint_id or status)\n\nQuery params:\n    ?sprint_id=1&status=TODO\n\nResponse:\n    {\n        \"tasks\": [\n            {\n                \"task_id\": 1,\n                \"title\": \"Setup project\",\n                \"sprint_id\": 1,\n                \"status\": \"TODO\",\n                \"priority\": \"HIGH\",\n                \"assigned_to\": \"John Doe\",\n                \"created_by\": \"Jane Smith\"\n            },\n            ...\n        ],\n        \"total\": 5\n    }",
+        "operationId": "get_tasks_api_v1_tasks_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sprint_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sprint Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Get Task Detail",
+        "description": "Get task details\n\nResponse:\n    {\n        \"task_id\": 1,\n        \"title\": \"Setup project\",\n        \"sprint_id\": 1,\n        \"description\": \"...\",\n        \"status\": \"TODO\",\n        \"priority\": \"HIGH\",\n        \"assigned_to\": \"John Doe\",\n        \"created_by\": \"Jane Smith\",\n        \"created_at\": \"2026-01-28T10:00:00\",\n        \"updated_at\": \"2026-01-28T10:00:00\"\n    }",
+        "operationId": "get_task_detail_api_v1_tasks__task_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Update Task",
+        "description": "Update task details (title, description, status, priority, assigned_to)\n- Status must be one of: TODO, DOING, DONE, BLOCKED\n\nRequest:\n    {\n        \"title\": \"Setup project structure\",\n        \"status\": \"DOING\",\n        \"priority\": \"HIGH\",\n        \"assigned_to\": \"student-uuid-1\"\n    }\n\nResponse:\n    {\n        \"task_id\": 1,\n        \"title\": \"Setup project structure\",\n        \"status\": \"DOING\",\n        \"priority\": \"HIGH\",\n        \"assigned_to\": \"John Doe\",\n        \"updated_at\": \"2026-01-28T10:30:00\"\n    }",
+        "operationId": "update_task_api_v1_tasks__task_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Delete Task",
+        "description": "Delete a task\n\nResponse:\n    {\n        \"task_id\": 1,\n        \"message\": \"Task deleted successfully\"\n    }",
+        "operationId": "delete_task_api_v1_tasks__task_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/init-db": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Initialize Database",
+        "description": "Create all tables and seed initial data.\n⚠️ USE ONLY IN DEVELOPMENT!",
+        "operationId": "initialize_database_api_v1_admin_init_db_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/db-status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Check Database Status",
+        "description": "Check if database tables exist.",
+        "operationId": "check_database_status_api_v1_admin_db_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/test": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Test Endpoint",
+        "operationId": "test_endpoint_api_v1_test_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/test": {
+      "get": {
+        "summary": "Test",
+        "operationId": "test_test_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "description": "Root endpoint to verify the backend is running.",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Health check endpoint.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_login_access_token_api_v1_auth_login_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "password"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_access_token_api_v1_auth_login_post"
+      },
+      "EvaluationCreate": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "project_id": {
+            "type": "integer",
+            "title": "Project Id"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "project_id",
+          "score"
+        ],
+        "title": "EvaluationCreate"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "TaskCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority",
+            "default": "MEDIUM"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "sprint_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sprint Id"
+          },
+          "assignee_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Id"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "TaskCreate",
+        "description": "Schema for creating a Task."
+      },
+      "TaskPriority": {
+        "type": "string",
+        "enum": [
+          "LOW",
+          "MEDIUM",
+          "HIGH"
+        ],
+        "title": "TaskPriority",
+        "description": "Task priority enum."
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "TODO",
+          "DOING",
+          "DONE",
+          "BLOCKED"
+        ],
+        "title": "TaskStatus",
+        "description": "Task status enum."
+      },
+      "TaskUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskPriority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assignee_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Id"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          }
+        },
+        "type": "object",
+        "title": "TaskUpdate",
+        "description": "Schema for updating a Task."
+      },
+      "TeamCreate": {
+        "properties": {
+          "team_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Name"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "project_id": {
+            "type": "integer",
+            "title": "Project Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "project_id"
+        ],
+        "title": "TeamCreate",
+        "description": "Schema for creating a Team."
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type"
+        ],
+        "title": "Token"
+      },
+      "TopicCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirements"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "TopicCreate"
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active",
+            "default": true
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 8,
+            "title": "Password"
+          },
+          "role_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Id"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "UserCreate"
+      },
+      "UserResponse": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active",
+            "default": true
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "role_id": {
+            "type": "integer",
+            "title": "Role Id"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "user_id",
+          "role_id"
+        ],
+        "title": "UserResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {
+
+            },
+            "tokenUrl": "/api/v1/auth/login"
+          }
+        }
+      }
+    }
+  }
+}

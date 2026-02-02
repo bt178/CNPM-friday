@@ -1,0 +1,93 @@
+﻿{
+    "/api/v1/auth/login":  {
+                               "post":  {
+                                            "tags":  [
+                                                         "authentication"
+                                                     ],
+                                            "summary":  "Login Access Token",
+                                            "description":  "OAuth2 compatible token login, get an access token for future requests.",
+                                            "operationId":  "login_access_token_api_v1_auth_login_post",
+                                            "requestBody":  {
+                                                                "content":  "@{application/x-www-form-urlencoded=}",
+                                                                "required":  true
+                                                            },
+                                            "responses":  {
+                                                              "200":  "@{description=Successful Response; content=}",
+                                                              "422":  "@{description=Validation Error; content=}"
+                                                          }
+                                        }
+                           },
+    "/api/v1/auth/register":  {
+                                  "post":  {
+                                               "tags":  [
+                                                            "authentication"
+                                                        ],
+                                               "summary":  "Register User",
+                                               "description":  "Create new user.",
+                                               "operationId":  "register_user_api_v1_auth_register_post",
+                                               "requestBody":  {
+                                                                   "content":  "@{application/json=}",
+                                                                   "required":  true
+                                                               },
+                                               "responses":  {
+                                                                 "200":  "@{description=Successful Response; content=}",
+                                                                 "422":  "@{description=Validation Error; content=}"
+                                                             }
+                                           }
+                              },
+    "/api/v1/users/me":  {
+                             "get":  {
+                                         "tags":  [
+                                                      "users",
+                                                      "users"
+                                                  ],
+                                         "summary":  "Read Current User",
+                                         "description":  "Return the currently authenticated user\u0027s profile.",
+                                         "operationId":  "read_current_user_api_v1_users_me_get",
+                                         "responses":  {
+                                                           "200":  "@{description=Successful Response; content=}"
+                                                       },
+                                         "security":  [
+                                                          "@{OAuth2PasswordBearer=System.Object[]}"
+                                                      ]
+                                     }
+                         },
+    "/api/v1/test":  {
+                         "get":  {
+                                     "summary":  "Test Endpoint",
+                                     "operationId":  "test_endpoint_api_v1_test_get",
+                                     "responses":  {
+                                                       "200":  "@{description=Successful Response; content=}"
+                                                   }
+                                 }
+                     },
+    "/test":  {
+                  "get":  {
+                              "summary":  "Test",
+                              "operationId":  "test_test_get",
+                              "responses":  {
+                                                "200":  "@{description=Successful Response; content=}"
+                                            }
+                          }
+              },
+    "/":  {
+              "get":  {
+                          "summary":  "Root",
+                          "description":  "Root endpoint to verify the backend is running.",
+                          "operationId":  "root__get",
+                          "responses":  {
+                                            "200":  "@{description=Successful Response; content=}"
+                                        }
+                      }
+          },
+    "/health":  {
+                    "get":  {
+                                "summary":  "Health Check",
+                                "description":  "Health check endpoint.",
+                                "operationId":  "health_check_health_get",
+                                "responses":  {
+                                                  "200":  "@{description=Successful Response; content=}"
+                                              }
+                            }
+                }
+}

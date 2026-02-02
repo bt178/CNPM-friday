@@ -1,0 +1,330 @@
+.lecturer-dashboard {
+    min-height: 100vh;
+    background: #f5f5f5;
+}
+
+.lecturer-sider {
+    background: #ffffff;
+    padding: 24px 16px;
+    border-right: 1px solid #f0f0f0;
+}
+
+.lecturer-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.logo-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #d9d9d9;
+}
+
+.logo-text {
+    font-weight: 600;
+    color: #1f1f1f;
+}
+
+.lecturer-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 0 24px;
+}
+
+.profile-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.profile-greeting {
+    font-weight: 600;
+}
+
+.menu-section {
+    display: block;
+    margin: 16px 0 8px;
+    color: #8c8c8c;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+}
+
+.lecturer-menu {
+    background: transparent;
+    border-right: none;
+}
+
+.lecturer-header {
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    border-bottom: none;
+}
+
+.header-title {
+    font-weight: 600;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-icon {
+    font-size: 18px;
+    color: #595959;
+}
+
+.lecturer-content {
+    padding: 24px;
+}
+
+.lecturer-dashboard .dashboard-content {
+    font-size: 18px;
+}
+
+.lecturer-dashboard .hero-card {
+    height: 240px;
+}
+
+.lecturer-dashboard .project-card {
+    min-width: 320px;
+}
+
+.lecturer-dashboard .stat-card .ant-card-body,
+.lecturer-dashboard .project-card .ant-card-body {
+    padding: 28px;
+}
+
+.lecturer-dashboard .project-thumb {
+    height: 150px;
+}
+
+.lecturer-dashboard .progress-track {
+    height: 8px;
+}
+
+.hero-card {
+    height: 140px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #ffffff 0%, #f4f7ff 100%);
+    color: #1f1f1f;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.hero-placeholder {
+    background: #c8c3c3;
+    box-shadow: none !important;
+}
+
+.hero-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.hero-tag {
+    display: inline-flex;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(24, 144, 255, 0.12);
+    color: #1890ff;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.hero-actions {
+    margin-left: auto;
+}
+
+.stats-row {
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    border-radius: 16px;
+}
+
+.stat-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.stat-title {
+    color: #8c8c8c;
+}
+
+.stat-value {
+    margin: 4px 0 0;
+}
+
+.stat-subtitle {
+    display: block;
+    color: #1f1f1f;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+}
+
+.lecturer-main-row {
+    margin-top: 8px;
+}
+
+.queue-item {
+    padding: 12px 0 !important;
+}
+
+.progress-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.progress-item__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.progress-item__note {
+    font-size: 12px;
+}
+
+.projects-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 40px 0 28px;
+}
+
+.project-scroll {
+    display: flex;
+    gap: 28px;
+    overflow-x: auto;
+    padding-bottom: 16px;
+    scroll-snap-type: x mandatory;
+}
+
+.project-scroll::-webkit-scrollbar {
+    height: 10px;
+}
+
+.project-scroll::-webkit-scrollbar-track {
+    background: #dcdcdc;
+    border-radius: 999px;
+}
+
+.project-scroll::-webkit-scrollbar-thumb {
+    background: #bfbfbf;
+    border-radius: 999px;
+}
+
+.project-card {
+    border-radius: 20px;
+    margin-bottom: 24px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-width: 340px;
+    scroll-snap-align: start;
+}
+
+.project-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 32px rgba(24, 144, 255, 0.18);
+}
+
+.project-thumb {
+    height: 170px;
+    border-radius: 16px;
+    background: #c8c3c3;
+}
+
+.project-card h5,
+.project-card .ant-typography {
+    font-size: 18px;
+}
+
+.project-card .ant-typography-secondary {
+    font-size: 14px;
+}
+
+.project-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+.progress-track {
+    height: 6px;
+    border-radius: 999px;
+    background: #dcdcdc;
+    margin: 8px 0 16px;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 72%;
+    border-radius: inherit;
+    background: #bfbfbf;
+}
+
+.progress-card {
+    border-radius: 16px;
+    margin-top: 16px;
+}
+
+.progress-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.sidebar-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.calendar-card,
+.activity-card {
+    border-radius: 16px;
+}
+
+.activity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 992px) {
+    .lecturer-sider {
+        display: none;
+    }
+
+    .lecturer-content {
+        padding: 16px;
+    }
+
+    .sidebar-col {
+        width: 100%;
+    }
+}

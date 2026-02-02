@@ -1,0 +1,9 @@
+import apiClient from './apiClient';
+
+export const lecturerTopicsService = {
+  listTopics: () => apiClient.get('/topics'),
+  createTopic: (payload) => apiClient.post('/topics', payload),
+  approveTopic: (topicId) => apiClient.patch(`/topics/${topicId}/approve`),
+  rejectTopic: (topicId) => apiClient.patch(`/topics/${topicId}/reject`),
+  createEvaluation: (payload) => apiClient.post('/evaluations', payload),
+};
