@@ -43,6 +43,9 @@ export const getDefaultDashboardPath = (user) => {
     if (roleName && ADMIN_ROLE_NAMES.has(roleName)) {
         return '/admin';
     }
+    if (roleName === 'LECTURER') {
+        return '/lecturer';
+    }
     return '/dashboard';
 };
 
