@@ -93,7 +93,7 @@ class User(Base):
     created_topics: Mapped[list["Topic"]] = relationship("Topic", back_populates="creator", foreign_keys="Topic.creator_id")
     created_milestones: Mapped[list["Milestone"]] = relationship("Milestone", back_populates="creator", foreign_keys="Milestone.created_by")
     evaluations: Mapped[list["Evaluation"]] = relationship("Evaluation", back_populates="evaluator", foreign_keys="Evaluation.evaluator_id")
-    mentoring_logs: Mapped[list["MentoringLog"]] = relationship("MentoringLog", back_populates="lecturer", foreign_keys="MentoringLog.lecturer_id")
+    mentoring_logs: Mapped[list["MentoringLog"]] = relationship("MentoringLog", back_populates="mentor", foreign_keys="MentoringLog.mentor_id")
 
     # Student relations
     enrollments: Mapped[list["ClassEnrollment"]] = relationship("ClassEnrollment", back_populates="student")
@@ -110,6 +110,9 @@ class User(Base):
     # Peer Reviews
     peer_reviews_given: Mapped[list["PeerReview"]] = relationship("PeerReview", back_populates="reviewer", foreign_keys="PeerReview.reviewer_id")
     peer_reviews_received: Mapped[list["PeerReview"]] = relationship("PeerReview", back_populates="reviewee", foreign_keys="PeerReview.reviewee_id")
+    
+    # Notifications
+    notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="user")
 
 
 class SystemSetting(Base):
@@ -491,13 +494,16 @@ class MentoringLog(Base):
     __tablename__ = "mentoring_logs"
     log_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     team_id: Mapped[int] = mapped_column(Integer, ForeignKey("teams.team_id", ondelete="CASCADE"))
-    lecturer_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.user_id"))
-    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    meeting_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    mentor_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.user_id"))
+    session_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    discussion_points: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ai_suggestions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    meeting_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     team: Mapped["Team"] = relationship("Team", back_populates="mentoring_logs")
-    lecturer: Mapped["User"] = relationship("User", back_populates="mentoring_logs")
+    mentor: Mapped["User"] = relationship("User", back_populates="mentoring_logs")
 
 
 class Resource(Base):
@@ -512,3 +518,19 @@ class Resource(Base):
     uploader: Mapped["User"] = relationship("User", back_populates="uploaded_resources")
     academic_class: Mapped[Optional["AcademicClass"]] = relationship("AcademicClass", back_populates="resources")
     team: Mapped[Optional["Team"]] = relationship("Team", back_populates="resources")
+
+
+class Notification(Base):
+    """Notification model for user notifications."""
+    __tablename__ = "notifications"
+    notification_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    notification_type: Mapped[str] = mapped_column(String(50), default="info")  # info, warning, success, error
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    related_entity_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # task, team, message, etc.
+    related_entity_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    
+    user: Mapped["User"] = relationship("User", back_populates="notifications")

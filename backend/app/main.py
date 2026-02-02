@@ -4,6 +4,7 @@ import logging
 
 from app.core.config import settings
 from app.api.v1.api import api_router  # Import from v1 API router
+from app.services.socket_manager import socket_app  # Socket.IO - Phase 3 BE1
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +40,9 @@ if allowed_origins:
 
 # Mount API routes with /api/v1 prefix
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Mount Socket.IO at /socket.io path - Phase 3 BE1
+app.mount("/socket.io", socket_app)
 
 @app.get("/test")
 async def test():

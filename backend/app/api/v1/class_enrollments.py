@@ -6,7 +6,7 @@ from typing import List
 from uuid import UUID
 import logging
 
-from app.db import get_db
+from app.api.deps import get_db
 from app.models.all_models import ClassEnrollment, AcademicClass, User
 from app.schemas.class_enrollments import (
     ClassEnrollmentCreate,

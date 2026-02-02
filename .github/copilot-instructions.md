@@ -154,55 +154,87 @@ backend/app/
 - **Real-time updates** via Socket.IO for chat and notifications
 - **Role-based UI** rendering (different views for students vs lecturers)
 
-### Recent Fixes (January 31, 2026 - Phase 1 MVP Complete)
-**✅ HOÀN THÀNH PHASE 1 - MVP Foundation Ready:**
+### Project Status (February 2, 2026 - Phase 1 & 2 Complete)
+**✅ HOÀN THÀNH PHASE 1 + 2 - Core System Ready:**
 
-#### ✅ Core Infrastructure (Completed)
-1. ✅ **V1 Architecture + Auth**
-   - Using `/api/v1/` versioning structure
-   - `POST /api/v1/auth/register` - Create user with role_id
-   - `POST /api/v1/auth/login` - OAuth2 token endpoint
-   - `GET /api/v1/users/me` - Get authenticated user profile
-   - JWT tokens (30-min expiration), role-based access control
+#### ✅ API Endpoints Implemented (~60 endpoints)
+| Module | Endpoints | Status |
+|--------|-----------|--------|
+| Auth | login, register | ✅ Done |
+| Users | /me, profile | ✅ Done |
+| Topics | CRUD, approve, reject, evaluations | ✅ Done (7) |
+| Teams | CRUD, join, leave, finalize, select-project | ✅ Done (7) |
+| Tasks | CRUD, sprints, status, assign | ✅ Done (10) |
+| Projects | CRUD, claim | ✅ Done (4) |
+| Academic Classes | CRUD | ✅ Done (5) |
+| Enrollments | CRUD, bulk | ✅ Done (6) |
+| Subjects | CRUD | ✅ Done (5) |
+| Syllabuses | CRUD | ✅ Done (5) |
+| Departments | CRUD | ✅ Done (5) |
+| Notifications | CRUD | ✅ Done (6) |
+| Semesters | create | ⚠️ Partial (1) |
 
-2. ✅ **Database (Supabase PostgreSQL)**
-   - Connected via pooler (IPv6 DNS issue resolved)
-   - 5 roles: Admin(1), Staff(2), HeadDept(3), Lecturer(4), Student(5)
-   - 40+ SQLAlchemy models defined (no modifications needed)
-   - Async session management implemented
-   - `POST /api/v1/admin/init-db` endpoint working
+#### ✅ Frontend Pages Implemented
+- LoginPage.jsx, RegisterPage.jsx (Auth flow)
+- DashboardPage.jsx (Role-based routing)
+- AdminDashboard.jsx (Admin view)
+- LecturerDashboard.jsx (Topic management)
+- TopicManagement.jsx (CRUD topics)
+- ProjectListView.jsx, UserProfile.jsx, SettingsPage.jsx
 
-3. ✅ **Documentation & Folder Structure**
-   - Giao_Viec/ folder: Complete Phase 1 guide with code templates
-   - Giao_Viec_2/ folder: Phase 2 planning + ready-to-use FE services
-   - All schema definitions synced (TopicResponse added)
-   - Cross-references fixed (INDEX.md cleaned up)
+#### ✅ Database & Infrastructure
+- Supabase PostgreSQL connected (pooler, IPv6 resolved)
+- 5 roles seeded: Admin(1), Staff(2), HeadDept(3), Lecturer(4), Student(5)
+- 40+ SQLAlchemy models fully defined
+- Docker Compose with hot-reload working
 
-#### ✅ Phase 1 Deliverables (Ready to Test)
-- **20 API endpoints** (auth, users, topics, teams, tasks, sprints, etc.)
-- **BE code structure**: Schemas + Services + Endpoints complete
-- **FE services**: 4 ready-to-use files (apiClient.js + 3 service files)
-- **2 Dashboard scaffolds**: Admin/Lecturer/Student role-based routing
+#### 📂 Task Assignment Folders
+```
+Giao_Viec/    → Phase 1 (MVP Foundation) ✅ COMPLETED
+Giao_Viec_2/  → Phase 2 (Stabilization)  ✅ COMPLETED
+Giao_Viec_3/  → Phase 3 (Real-time: Chat, Meetings, Video)
+Giao_Viec_4/  → Phase 4 (AI, Peer Reviews, Advanced Evaluation)
+```
 
-#### 🎯 Current Team Status
-- **BE1 (Lead)**: Architecture oversight, code review, blocker resolution
-- **BE2**: Topics module endpoints + testing
-- **BE3**: Teams module endpoints + testing
-- **BE4**: Tasks/Sprints endpoints + testing
-- **FE1**: Lecturer dashboard (topics management)
-- **FE2**: Student dashboard (teams + projects)
+#### 🔴 APIs Still Missing (for Phase 3 & 4):
+| Module | Endpoints Needed | Phase |
+|--------|-----------------|-------|
+| Channels | CRUD (4) | Phase 3 |
+| Messages | CRUD + Real-time (5) | Phase 3 |
+| Meetings | CRUD + Video (6) | Phase 3 |
+| Semesters | GET, PUT, DELETE (3) | Phase 3 |
+| AI Mentoring | logs, suggestions (4) | Phase 4 |
+| Peer Reviews | CRUD + anonymization (5) | Phase 4 |
+| Milestones | CRUD + checkpoints (6) | Phase 4 |
+| Submissions | CRUD + grading (5) | Phase 4 |
+| Evaluation Details | scores, summary (4) | Phase 4 |
+| Resources | CRUD (4) | Phase 4 |
 
-#### 🚀 Next Phase (Jan 31+)
-- **Phase 2 Focus**: DAO Layer integration (DB optimization), FE dashboard completion
-- **Phase 3 Planning**: Sprint board, notifications, real-time chat (documented in PHASE3_PLAN.md)
-- **Code Ready**: Copy from Giao_Viec_2/CODE/fe/ into frontend/src/services/
+**Current Total:** ~60 endpoints  
+**Phase 3 Target:** ~80 endpoints  
+**Phase 4 Target (MVP Complete):** ~110 endpoints
 
-#### 📋 How to Use
-1. **Init Database**: `POST http://localhost:8000/api/v1/admin/init-db`
-2. **Register Test User**: `POST http://localhost:8000/api/v1/auth/register` (role_id 1-5)
-3. **Login**: `POST http://localhost:8000/api/v1/auth/login` (form data: username, password, grant_type)
-4. **Copy FE Services**: `Giao_Viec_2/CODE/fe/* → frontend/src/services/`
-5. **Follow Giao_Viec_2/INDEX.md** for Phase 2 task assignments
+#### 🎯 Next Steps
+1. Start Phase 3: Real-time features (Socket.IO, Chat, Video)
+2. Read `Giao_Viec_3/giao_viec.md` for task assignments
+3. BE1 sets up Socket.IO infrastructure
+4. BE2/BE3 implement Channels, Messages, Meetings
+5. FE1/FE2 build Chat UI and Video Call components
+
+#### 📋 Quick Commands
+```bash
+# Start all services
+docker-compose up
+
+# Init database
+POST http://localhost:8000/api/v1/admin/init-db
+
+# Check API docs
+http://localhost:8000/docs
+
+# Frontend
+http://localhost:3000
+```
 
 ### AI Features
 - **Google Gemini API** for mentoring suggestions in `MentoringLog.ai_suggestions`

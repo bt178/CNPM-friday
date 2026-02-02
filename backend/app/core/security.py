@@ -47,3 +47,27 @@ def create_access_token(subject: Union[str, Any], expires_delta: timedelta = Non
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+
+def verify_token(token: str) -> dict | None:
+    """
+    Verify JWT token and return payload.
+    Used by Socket.IO for authentication.
+    
+    Args:
+        token: JWT token string
+    
+    Returns:
+        Token payload dict or None if invalid
+    """
+    try:
+        payload = jwt.decode(
+            token, 
+            settings.SECRET_KEY, 
+            algorithms=[settings.ALGORITHM]
+        )
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.JWTError:
+        return None

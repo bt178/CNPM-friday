@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from typing import List, Optional
 import logging
 
-from app.db import get_db
+from app.api.deps import get_db
 from app.models.all_models import Syllabus, Subject, Department
 from app.schemas.syllabuses import (
     SyllabusCreate,

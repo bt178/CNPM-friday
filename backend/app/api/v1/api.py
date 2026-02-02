@@ -9,22 +9,24 @@ from app.models.all_models import Base, Role
 # Create the main API router
 api_router = APIRouter()
 
-# Include endpoint routers as they become available
-# For now, we'll start with a basic structure
-# TODO: Add more endpoint routers as they are implemented
+# ===== PHASE 1 & 2 ENDPOINTS =====
 
 # Auth 
 from app.api.v1.auth import router as auth_router
 api_router.include_router(auth_router, prefix="/auth", tags=["authentication"])
 
+# Users
 from app.api.v1 import users
 api_router.include_router(users.router, prefix="/users", tags=["users"])
+
+# Profile
+from app.api.v1.profile import router as profile_router
+api_router.include_router(profile_router, prefix="/profile", tags=["profile"])
 
 # Academic Classes
 from app.api.v1.academic_classes import router as ac_router
 api_router.include_router(ac_router, prefix="/academic-classes", tags=["academic-classes"])
 
-# Topics & Evaluation
 # Topics & Evaluation
 from app.api.v1.endpoints.topic import router as topics_router
 api_router.include_router(topics_router, prefix="/topics", tags=["topics"])
@@ -40,6 +42,56 @@ api_router.include_router(projects_router, prefix="/projects", tags=["projects"]
 # Tasks & Sprints
 from app.api.v1.tasks import router as tasks_router
 api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
+
+# Subjects
+from app.api.v1.subjects import router as subjects_router
+api_router.include_router(subjects_router, prefix="/subjects", tags=["subjects"])
+
+# Syllabuses
+from app.api.v1.syllabuses import router as syllabuses_router
+api_router.include_router(syllabuses_router, prefix="/syllabuses", tags=["syllabuses"])
+
+# Departments
+from app.api.v1.departments import router as departments_router
+api_router.include_router(departments_router, prefix="/departments", tags=["departments"])
+
+# Semesters
+from app.api.v1.semesters import router as semesters_router
+api_router.include_router(semesters_router, prefix="/semesters", tags=["semesters"])
+
+# Class Enrollments
+from app.api.v1.class_enrollments import router as enrollments_router
+api_router.include_router(enrollments_router, prefix="/enrollments", tags=["enrollments"])
+
+# Notifications
+from app.api.v1.notifications import router as notifications_router
+api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
+
+# User Import
+from app.api.v1.user_import import router as user_import_router
+api_router.include_router(user_import_router, prefix="/user-import", tags=["user-import"])
+
+# ===== PHASE 3 ENDPOINTS (Real-time - TO BE ADDED) =====
+# Uncomment these after copying files from Giao_Viec_3/CODE/be/
+# from app.api.v1.channels import router as channels_router
+# api_router.include_router(channels_router, prefix="/channels", tags=["channels"])
+# from app.api.v1.messages import router as messages_router
+# api_router.include_router(messages_router, prefix="/messages", tags=["messages"])
+# from app.api.v1.meetings import router as meetings_router
+# api_router.include_router(meetings_router, prefix="/meetings", tags=["meetings"])
+
+# ===== PHASE 4 ENDPOINTS (AI & Evaluation) =====
+# Mentoring - BE1 Implementation
+from app.api.v1.mentoring import router as mentoring_router
+api_router.include_router(mentoring_router, prefix="/mentoring", tags=["mentoring"])
+# from app.api.v1.peer_reviews import router as peer_reviews_router
+# api_router.include_router(peer_reviews_router, prefix="/peer-reviews", tags=["peer-reviews"])
+# from app.api.v1.milestones import router as milestones_router
+# api_router.include_router(milestones_router, prefix="/milestones", tags=["milestones"])
+# from app.api.v1.submissions import router as submissions_router
+# api_router.include_router(submissions_router, prefix="/submissions", tags=["submissions"])
+# from app.api.v1.resources import router as resources_router
+# api_router.include_router(resources_router, prefix="/resources", tags=["resources"])
 
 # ===== ADMIN ENDPOINTS (Development Only) =====
 @api_router.post("/admin/init-db", tags=["admin"])
