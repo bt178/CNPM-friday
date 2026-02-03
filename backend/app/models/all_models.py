@@ -150,6 +150,7 @@ class Semester(Base):
     __tablename__ = "semesters"
     semester_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     semester_code: Mapped[str] = mapped_column(String, unique=True)
+    semester_name: Mapped[Optional[str]] = mapped_column(String, nullable=True) # Added
     start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     status: Mapped[Optional[str]] = mapped_column(String, nullable=True)

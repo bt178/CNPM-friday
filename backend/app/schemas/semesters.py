@@ -1,28 +1,38 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from datetime import date
 from typing import Optional
 
-class SemesterCreate(BaseModel):
-    semester_code: str  # ✅ THÊM - VD: "2026S1", "2026F1"
-    semester_name: str  # VD: "Spring 2026"
-    start_date: date
-    end_date: date
-    status: Optional[str] = None
+class SemesterBase(BaseModel):
+    semester_code: str  # VD: "2026S1", "2026F1"
+    semester_name: Optional[str] = None  # VD: "Học Kì 1", "Học Kì 2", "Học Kì Hè 3"
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: Optional[str] = "UPCOMING"  # ACTIVE, UPCOMING, COMPLETED
+
+    @validator('status')
+    def validate_status(cls, v):
+        if v and v.upper() not in ["ACTIVE", "UPCOMING", "COMPLETED"]:
+            raise ValueError('Status must be ACTIVE, UPCOMING, or COMPLETED')
+        return v.upper() if v else v
+
+class SemesterCreate(SemesterBase):
+    pass
 
 class SemesterUpdate(BaseModel):
-    semester_code: Optional[str] = None  # ✅ THÊM
+    semester_code: Optional[str] = None
     semester_name: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     status: Optional[str] = None
 
-class SemesterResponse(BaseModel):
+    @validator('status')
+    def validate_status(cls, v):
+        if v and v.upper() not in ["ACTIVE", "UPCOMING", "COMPLETED"]:
+            raise ValueError('Status must be ACTIVE, UPCOMING, or COMPLETED')
+        return v.upper() if v else v
+
+class SemesterResponse(SemesterBase):
     semester_id: int
-    semester_code: str  # ✅ THÊM
-    semester_name: str
-    start_date: date
-    end_date: date
-    status: Optional[str] = None
     
     class Config:
         from_attributes = True
